@@ -5,12 +5,12 @@
 COMMAND=$1
 
 function show_help {
-    echo "Usage: ./quickstart.sh [dev|apk|build|prod|setup-prod|setup-dev|setup-mac]"
+    echo "Usage: ./quickstart.sh [dev|apk|build|server|setup-prod|setup-dev|setup-mac]"
     echo ""
     echo "  dev        - Install dependencies and start local development server (with hot-reload)."
     echo "  apk        - Build the Android Template APK (requires Gradle/Android SDK)."
     echo "  build      - Bundle self-contained production server into ./dist."
-    echo "  prod       - Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
+    echo "  server     - Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
     echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
     echo "  setup-dev  - Install Full Android SDK (for building templates)."
     echo "  setup-mac  - Install development tools on macOS (via Homebrew)."
@@ -27,7 +27,9 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # Set Node Version (try 24, fallback silently)
-nvm use 24 > /dev/null 2>&1 || true
+if command -v nvm &> /dev/null; then
+    nvm use 24 > /dev/null 2>&1 || true
+fi
 
 function build_dist {
     echo ">>> Building Production Release to ./dist..."
@@ -118,7 +120,7 @@ elif [ "$COMMAND" == "apk" ]; then
 elif [ "$COMMAND" == "build" ]; then
     build_dist
 
-elif [ "$COMMAND" == "prod" ]; then
+elif [ "$COMMAND" == "server" ]; then
     # Server Deployment / Restart Script
     echo ">>> Starting Production Deployment..."
 
@@ -144,27 +146,36 @@ elif [ "$COMMAND" == "prod" ]; then
     fi
 
     # 3. Start/Restart Application
+    # 4. Start/Restart Application
     echo ">>> Managing Process with PM2..."
     
-    # Ensure dist exists (basic check)
-    if [ ! -f "dist/server/index.js" ]; then
-        echo "WARNING: dist/server/index.js not found. You might need to run './quickstart.sh build' first if this is a fresh clone."
-        # Optional: Auto build?
-        # build_dist
+    # Determine Entry Point
+    APP_ENTRY=""
+    if [ -f "server/index.js" ]; then
+        # We are likely inside the 'dist' folder (deployed content) or dev root
+        APP_ENTRY="server/index.js"
+    elif [ -f "dist/server/index.js" ]; then
+        # We are in project root and dist exists
+        APP_ENTRY="dist/server/index.js"
+    else
+        echo "WARNING: Could not find server/index.js or dist/server/index.js."
+        echo "If you are in the project root, run './quickstart.sh build' first."
     fi
 
-    # Check if process exists and restart, else start
-    if pm2 list | grep -q "web2app"; then
-        echo ">>> Reloading web2app..."
-        pm2 reload web2app
-    else
-        echo ">>> Starting web2app..."
-        pm2 start dist/server/index.js --name web2app
+    if [ ! -z "$APP_ENTRY" ]; then
+        # Check if process exists and restart, else start
+        if pm2 list | grep -q "web2app"; then
+            echo ">>> Reloading web2app..."
+            pm2 reload web2app
+        else
+            echo ">>> Starting web2app ($APP_ENTRY)..."
+            pm2 start "$APP_ENTRY" --name web2app
+        fi
+        
+        pm2 save
+        echo ">>> Deployment Complete. Application is running."
+        echo ">>> Monitor with: pm2 monit"
     fi
-    
-    pm2 save
-    echo ">>> Deployment Complete. Application is running."
-    echo ">>> Monitor with: pm2 monit"
 
 elif [ "$COMMAND" == "setup-prod" ]; then
     echo ">>> Installing Production Dependencies (Ubuntu/Debian)..."
