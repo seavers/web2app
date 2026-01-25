@@ -119,15 +119,9 @@ elif [ "$COMMAND" == "setup-prod" ]; then
     apt-get update
     apt-get install -y openjdk-17-jdk git unzip curl wget
 
-    # 2. Install Signing Tools (apksigner, zipalign) - avoid full SDK
-    apt-get install -y apksigner zipalign
-
-    # 3. Install Apktool
-    echo ">>> Installing Apktool..."
-    wget https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool -O /usr/local/bin/apktool
-    wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
-    chmod +x /usr/local/bin/apktool
-    chmod +x /usr/local/bin/apktool.jar
+    # 2. Install Signing Tools (apksigner, zipalign) and Apktool
+    # Note: Apktool in apt might be older, but usually sufficient.
+    apt-get install -y apksigner zipalign apktool
 
     echo ">>> Production Setup Complete!"
     echo "Verify with: apktool -version && apksigner --version"
@@ -140,19 +134,10 @@ elif [ "$COMMAND" == "setup-dev" ]; then
         exit 1
     fi
 
-    # 1. Base tools from prod
+    # 1. Base tools from prod (incl. apktool)
     apt-get update
-    apt-get install -y openjdk-17-jdk git unzip curl wget
+    apt-get install -y openjdk-17-jdk git unzip curl wget apktool
     
-    # Check if apktool already installed
-    if ! command -v apktool &> /dev/null; then
-        echo ">>> Installing Apktool..."
-        wget https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool -O /usr/local/bin/apktool
-        wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
-        chmod +x /usr/local/bin/apktool
-        chmod +x /usr/local/bin/apktool.jar
-    fi
-
     # 2. Install Android SDK Command Line Tools
     echo ">>> Installing Android SDK..."
     export ANDROID_HOME=/opt/android-sdk
