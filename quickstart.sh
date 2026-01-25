@@ -67,6 +67,10 @@ function build_dist {
         cp config.json dist/
         echo ">>> Copied config.json."
     fi
+    
+    # Copy quickstart script for easy server execution
+    cp quickstart.sh dist/
+    chmod +x dist/quickstart.sh
 
     echo ">>> Production build ready in ./dist"
 }
