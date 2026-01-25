@@ -258,18 +258,19 @@ async function getOrCreateKeystore(hostname) {
     return keystorePath;
 }
 
-async function generateApk(targetUrl, customAppName) {
+async function generateApk(targetUrl, customAppName, customIconUrl) {
     const jobId = uuidv4();
     const workDir = path.join(TEMP_DIR, jobId);
 
     // 1. Prepare Workspace
     await fs.ensureDir(workDir);
 
-    // 2. Extract Metadata (Title, Icon) - Only if custom name not provided, but we still need icon.
-    // Actually we might need icon always.
+    // 2. Extract Metadata (Title, Icon)
     const meta = await extractMeta(targetUrl);
     const title = customAppName || meta.title;
-    const icon = meta.icon;
+
+    // Priority: customIconUrl > meta.icon
+    const icon = customIconUrl || meta.icon;
 
     console.log(`Generating app for: ${targetUrl}, Title: ${title}, Icon: ${icon}`);
 

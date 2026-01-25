@@ -4,11 +4,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const appNameGroup = document.getElementById('appNameGroup');
     const appNameInput = document.getElementById('appNameInput');
     const appIconPreview = document.getElementById('appIconPreview');
+    const iconUploadInput = document.getElementById('iconUploadInput');
     const statusDiv = document.getElementById('status');
     const loadingDiv = document.getElementById('loading');
     const resultDiv = document.getElementById('result');
 
     let fetchMetaTimeout;
+    let customIconUrl = ''; // Store the uploaded icon URL
+
+    // Icon Upload Logic
+    appIconPreview.style.cursor = 'pointer';
+    appIconPreview.addEventListener('click', () => {
+        iconUploadInput.click();
+    });
+
+    // Handle Icon Load Error (Show blank or placeholder)
+    appIconPreview.addEventListener('error', () => {
+        // Transparent 1x1 GIF as blank placeholder
+        appIconPreview.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    });
+
+    iconUploadInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Optimistic preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            appIconPreview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // Upload
+        const formData = new FormData();
+        formData.append('iconFile', file);
+
+        showStatus('正在上传图标...', 'info');
+
+        try {
+            const res = await fetch('/api/upload-icon', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.url) {
+                customIconUrl = data.url;
+                showStatus('图标上传成功', 'success');
+            } else {
+                showStatus('图标上传失败', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showStatus('图标上传出错', 'error');
+        }
+    });
 
     // Listen for URL input changes to fetch metadata
     urlInput.addEventListener('input', () => {
@@ -22,6 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (isValidUrl(url)) {
+            // New URL means we should probably reset the custom upload, 
+            // unless we want to be very sticky. Let's reset for safety.
+            customIconUrl = '';
+
             // Debounce fetch
             clearTimeout(fetchMetaTimeout);
             fetchMetaTimeout = setTimeout(() => fetchSmartTitle(url), 500);
@@ -91,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url, appName })
+                body: JSON.stringify({ url, appName, iconUrl: customIconUrl })
             });
 
             const data = await response.json();
