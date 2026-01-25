@@ -43,9 +43,43 @@ async function extractMeta(url) {
 }
 
 const findAndroidTool = (toolName) => {
+    let androidHome = process.env.ANDROID_HOME;
+
+    // Fix: If ANDROID_HOME points to a subdirectory (like platforms/android-36), define proper SDK root
+    if (androidHome && (androidHome.includes('/platforms/') || androidHome.endsWith('/platforms'))) {
+        // Attempt to move up two levels if it looks like .../sdk/platforms/android-36
+        // Or one level if .../sdk/platforms
+        // Safest strategy: Look for 'build-tools' relative to standard SDK structure variants
+        // or just clean up the path string.
+
+        // Assumption: User path is .../sdk/platforms/android-36
+        // We need .../sdk
+        if (androidHome.endsWith('/platforms/android-36')) {
+            androidHome = path.dirname(path.dirname(androidHome));
+        } else if (path.basename(path.dirname(androidHome)) === 'platforms') {
+            androidHome = path.dirname(path.dirname(androidHome));
+        }
+    }
+
     // Try to find in ANDROID_HOME first
-    if (process.env.ANDROID_HOME) {
-        const buildToolsDir = path.join(process.env.ANDROID_HOME, 'build-tools');
+    if (androidHome) {
+        let buildToolsDir = path.join(androidHome, 'build-tools');
+
+        // Fallback: Check if user actually pointed closely to root but maybe slightly off, 
+        // or ensure we really have the root. 
+        if (!fs.existsSync(buildToolsDir)) {
+            // Maybe ANDROID_HOME was .../sdk/platforms/android-36 and our slice logic failed or was different
+            // Let's try to look "up" the tree until we find build-tools or hit root
+            let currentDir = androidHome;
+            for (let i = 0; i < 3; i++) { // Try going up 3 levels max
+                if (fs.existsSync(path.join(currentDir, 'build-tools'))) {
+                    buildToolsDir = path.join(currentDir, 'build-tools');
+                    break;
+                }
+                currentDir = path.dirname(currentDir);
+            }
+        }
+
         if (fs.existsSync(buildToolsDir)) {
             const versions = fs.readdirSync(buildToolsDir).sort().reverse();
             if (versions.length > 0) {
