@@ -5,12 +5,12 @@
 COMMAND=$1
 
 function show_help {
-    echo "Usage: ./quickstart.sh [dev|apk|build|server|setup-prod|setup-dev|setup-mac]"
+    echo "Usage: ./web2app.sh [dev|build-apk|build|prod|setup-prod|setup-dev|setup-mac]"
     echo ""
     echo "  dev        - Install dependencies and start local development server (with hot-reload)."
-    echo "  apk        - Build the Android Template APK (requires Gradle/Android SDK)."
+    echo "  build-apk  - Build the Android Template APK (requires Gradle/Android SDK)."
     echo "  build      - Bundle self-contained production server into ./dist."
-    echo "  server     - Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
+    echo "  prod       - Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
     echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
     echo "  setup-dev  - Install Full Android SDK (for building templates)."
     echo "  setup-mac  - Install development tools on macOS (via Homebrew)."
@@ -68,9 +68,9 @@ function build_dist {
         echo ">>> Copied config.json."
     fi
     
-    # Copy quickstart script for easy server execution
-    cp quickstart.sh dist/
-    chmod +x dist/quickstart.sh
+    # Copy quickstart script (web2app.sh) for easy server execution
+    cp web2app.sh dist/
+    chmod +x dist/web2app.sh
 
     echo ">>> Production build ready in ./dist"
 }
@@ -82,7 +82,7 @@ if [ "$COMMAND" == "dev" ]; then
     echo ">>> Starting Server (Dev Mode)..."
     pnpm run dev
 
-elif [ "$COMMAND" == "apk" ]; then
+elif [ "$COMMAND" == "build-apk" ]; then
     echo ">>> Building Android Template..."
     
     # Check for Android SDK
@@ -124,7 +124,7 @@ elif [ "$COMMAND" == "apk" ]; then
 elif [ "$COMMAND" == "build" ]; then
     build_dist
 
-elif [ "$COMMAND" == "server" ]; then
+elif [ "$COMMAND" == "prod" ]; then
     # Server Deployment / Restart Script
     echo ">>> Starting Production Deployment..."
 
@@ -138,7 +138,7 @@ elif [ "$COMMAND" == "server" ]; then
     if [ $MISSING_TOOLS -eq 1 ]; then
         echo ">>> Missing required tools (apktool/apksigner/zipalign)."
         echo ">>> Attempting auto-setup (requires sudo/root)..."
-        ./quickstart.sh setup-prod
+        ./web2app.sh setup-prod
     else
         echo ">>> APK Tools are ready."
     fi
@@ -163,7 +163,7 @@ elif [ "$COMMAND" == "server" ]; then
         APP_ENTRY="dist/server/index.js"
     else
         echo "WARNING: Could not find server/index.js or dist/server/index.js."
-        echo "If you are in the project root, run './quickstart.sh build' first."
+        echo "If you are in the project root, run './web2app.sh build' first."
     fi
 
     if [ ! -z "$APP_ENTRY" ]; then
@@ -185,7 +185,7 @@ elif [ "$COMMAND" == "setup-prod" ]; then
     echo ">>> Installing Production Dependencies (Ubuntu/Debian)..."
     
     if [ "$EUID" -ne 0 ]; then
-        echo "Please run as root (sudo ./quickstart.sh setup-prod)"
+        echo "Please run as root (sudo ./web2app.sh setup-prod)"
         exit 1
     fi
 
@@ -204,7 +204,7 @@ elif [ "$COMMAND" == "setup-dev" ]; then
     echo ">>> Installing Development Dependencies (Full Android SDK)..."
     
     if [ "$EUID" -ne 0 ]; then
-        echo "Please run as root (sudo ./quickstart.sh setup-dev)"
+        echo "Please run as root (sudo ./web2app.sh setup-dev)"
         exit 1
     fi
 
