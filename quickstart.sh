@@ -9,7 +9,7 @@ function show_help {
     echo ""
     echo "  dev   - Install dependencies and start local development server (with hot-reload)."
     echo "  app   - Build the Android Template APK (requires Gradle/Android SDK)."
-    echo "  prod  - (Default) Install production dependencies and start the server."
+    echo "  prod  - (Default) Build production-ready code into ./dist directory."
     echo ""
 }
 
@@ -71,10 +71,40 @@ elif [ "$COMMAND" == "app" ]; then
     cd ..
 
 elif [ "$COMMAND" == "prod" ]; then
-    echo ">>> Starting Production Environment..."
-    pnpm install --omit=dev
-    echo ">>> Starting Server..."
-    pnpm start
+    echo ">>> Building Production Release to ./dist..."
+    
+    # Clean dist
+    rm -rf dist
+    mkdir -p dist
+
+    # Install dependencies
+    pnpm install
+
+    # Copy Source Code
+    cp -r server dist/
+    cp -r public dist/
+    cp package.json dist/
+
+    # Copy Assets (Template & Keystore)
+    if [ -f "template.apk" ]; then
+        cp template.apk dist/
+    else
+        echo "WARNING: template.apk not found. Production build might fail to generate apps."
+    fi
+
+    if [ -f "web2app.keystore" ]; then
+        cp web2app.keystore dist/
+    else
+        echo "WARNING: web2app.keystore not found."
+    fi
+
+    # Install Production Dependencies in dist
+    cd dist
+    echo ">>> Installing dependencies in ./dist..."
+    pnpm install --prod
+    
+    echo ">>> Production build ready in ./dist"
+    echo ">>> To run: cd dist && node server/index.js"
 
 else
     show_help
