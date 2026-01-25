@@ -43,20 +43,7 @@ function build_dist {
     # Bundle Server with esbuild
     echo ">>> Bundling server..."
     # We bundle to dist/server/index.js to manage relative paths (../public, ../template.apk) correctly
-    # Exclude 'sharp' because it relies on platform-specific binaries that shouldn't be bundled
-    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js --external:sharp
-
-    # Install Linux Dependencies for Sharp (Cross-Install using npm)
-    # This downloads the Linux binaries on macOS so they are included in 'dist'
-    echo ">>> Pre-installing 'sharp' (Linux x64) into dist/node_modules..."
-    cd dist
-    # create a dummy package.json to avoid searching up the tree
-    echo '{"name":"dist-deps","private":true}' > package.json
-    # npm install sharp matching the version in root package.json roughly (or just latest compatible)
-    npm install sharp@^0.34.5 --os=linux --cpu=x64 --force --no-save
-    # Remove dummy package.json and lockfile to keep it clean (optional, but node_modules remains)
-    rm package.json package-lock.json
-    cd ..
+    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js
 
     # Copy Static Assets
     cp -r public dist/

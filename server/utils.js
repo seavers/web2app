@@ -1,7 +1,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
-const sharp = require('sharp');
+
 
 const MIPMAP_SIZES = {
     'mipmap-mdpi': 48,
@@ -30,43 +30,49 @@ async function downloadIcon(url, destPath) {
 
 async function startProcessingIcon(sourceIconPath, resDir) {
     try {
-        // Sharp can handle many formats including SVG, PNG, JPEG, TIFF, GIF, WEBP.
-        // ICO support depends on the platform libvips, but usually it works or we can try to force format.
-        // If the file has a wrong extension, sharp usually detects via magic numbers.
+        const { Jimp } = await import("jimp");
+        const image = await Jimp.read(sourceIconPath);
 
-        const image = sharp(sourceIconPath);
-
-        // Ensure we can read it.
-        const metadata = await image.metadata();
-        console.log(`Processing icon: ${sourceIconPath} (Format: ${metadata.format})`);
+        console.log(`Processing icon: ${sourceIconPath} (MIME: ${image.mime})`);
 
         for (const [folder, size] of Object.entries(MIPMAP_SIZES)) {
             const destDir = path.join(resDir, folder);
             await fs.ensureDir(destDir);
 
-            // Square icon
-            await image
-                .clone()
-                .resize(size, size)
-                .toFile(path.join(destDir, 'ic_launcher.png'));
+            // Square Icon
+            const squareIcon = image.clone();
+            squareIcon.resize({ w: size, h: size });
+            await squareIcon.write(path.join(destDir, 'ic_launcher.png'));
 
-            // Round icon
+            // Round Icon
             // Create a circle mask
-            const circle = Buffer.from(
-                `<svg><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" /></svg>`
-            );
+            const roundIcon = image.clone();
+            roundIcon.resize({ w: size, h: size });
 
-            await image
-                .clone()
-                .resize(size, size)
-                .composite([{
-                    input: circle,
-                    blend: 'dest-in'
-                }])
-                .toFile(path.join(destDir, 'ic_launcher_round.png'));
+            // Create a mask instance
+            const mask = new Jimp({ width: size, height: size, color: 0x00000000 });
+
+            // Draw a white circle on the mask
+            // Scan through all pixels of the mask
+            const center = size / 2;
+            const radius = size / 2;
+            mask.scan(0, 0, size, size, (x, y, idx) => {
+                const dist = Math.sqrt((x - center) ** 2 + (y - center) ** 2);
+                if (dist <= radius) {
+                    mask.bitmap.data[idx + 0] = 255; // R
+                    mask.bitmap.data[idx + 1] = 255; // G
+                    mask.bitmap.data[idx + 2] = 255; // B
+                    mask.bitmap.data[idx + 3] = 255; // Alpha
+                }
+            });
+
+            // Mask the image
+            roundIcon.mask(mask);
+
+            await roundIcon.write(path.join(destDir, 'ic_launcher_round.png'));
         }
     } catch (err) {
-        console.error('Error processing icons:', err);
+        console.error('Error processing icons (Jimp):', err);
         throw err;
     }
 }
