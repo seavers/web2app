@@ -18,6 +18,13 @@
             <input type="url" id="urlInput" placeholder="输入网站链接 (例如: https://example.com/)" required>
         </div>
 
+        <div class="input-group" id="appNameGroup" style="display: none; animation: fadeIn 0.5s;">
+            <label for="appNameInput"
+                style="display: block; text-align: left; margin-bottom: 8px; color: #666; font-size: 14px;">App
+                名称</label>
+            <input type="text" id="appNameInput" placeholder="正在获取推荐标题..." required>
+        </div>
+
         <button id="generateBtn" class="generate-btn">生成 App</button>
 
         <div id="loading" class="loading">

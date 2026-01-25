@@ -42,19 +42,22 @@ h1 {
     width: 100%;
 }
 
-input[type="url"] {
-    width: 80%; /* Adjusted for padding */
+input[type="url"],
+input[type="text"] {
+    width: 80%;
+    /* Adjusted for padding */
     padding: 15px 20px;
     border: 2px solid transparent;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.9);
     font-size: 16px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     outline: none;
 }
 
-input[type="url"]:focus {
+input[type="url"]:focus,
+input[type="text"]:focus {
     border-color: var(--primary-color);
     box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
 }
@@ -122,12 +125,45 @@ input[type="url"]:focus {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.footer { margin-top: 40px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 20px; } .github-link { display: inline-flex; align-items: center; color: #555; text-decoration: none; font-size: 14px; transition: color 0.2s; gap: 8px; } .github-link:hover { color: var(--primary-color); } .github-icon { fill: currentColor; width: 20px; height: 20px; }
+.footer {
+    margin-top: 40px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 20px;
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    color: #555;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+    gap: 8px;
+}
+
+.github-link:hover {
+    color: var(--primary-color);
+}
+
+.github-icon {
+    fill: currentColor;
+    width: 20px;
+    height: 20px;
+}

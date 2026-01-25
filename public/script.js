@@ -1,12 +1,59 @@
 document.addEventListener('DOMContentLoaded', () => {
     const generateBtn = document.getElementById('generateBtn');
     const urlInput = document.getElementById('urlInput');
+    const appNameGroup = document.getElementById('appNameGroup');
+    const appNameInput = document.getElementById('appNameInput');
     const statusDiv = document.getElementById('status');
     const loadingDiv = document.getElementById('loading');
     const resultDiv = document.getElementById('result');
 
+    let fetchMetaTimeout;
+
+    // Listen for URL input changes to fetch metadata
+    urlInput.addEventListener('input', () => {
+        const url = urlInput.value.trim();
+
+        // Hide name group if URL is cleared
+        if (!url) {
+            appNameGroup.style.display = 'none';
+            return;
+        }
+
+        if (isValidUrl(url)) {
+            // Debounce fetch
+            clearTimeout(fetchMetaTimeout);
+            fetchMetaTimeout = setTimeout(() => fetchSmartTitle(url), 500);
+        }
+    });
+
+    async function fetchSmartTitle(url) {
+        // Show field with placeholder
+        appNameGroup.style.display = 'block';
+        appNameInput.placeholder = '正在获取推荐标题...';
+
+        try {
+            const response = await fetch('/api/meta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const data = await response.json();
+
+            if (data.title) {
+                // Only fill if user hasn't manually edited it yet (heuristic)
+                // or simply overwrite for now as it's a suggestion
+                appNameInput.value = data.title;
+            }
+        } catch (e) {
+            console.error('Meta fetch failed', e);
+            appNameInput.placeholder = '请输入 App 名称';
+        }
+    }
+
     generateBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
+        const appName = appNameInput.value.trim();
+
         if (!url) {
             showStatus('请输入有效的网址', 'error');
             return;
@@ -14,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!isValidUrl(url)) {
             showStatus('请输入完整的 URL (例如: https://baidu.com)', 'error');
+            return;
+        }
+
+        if (!appName) {
+            showStatus('请输入 App 名称', 'error');
+            appNameInput.focus();
             return;
         }
 
@@ -29,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url })
+                body: JSON.stringify({ url, appName })
             });
 
             const data = await response.json();
