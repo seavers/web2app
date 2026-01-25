@@ -175,8 +175,17 @@ async function generateApk(targetUrl) {
     // Remove duplicate underscores and cleanup
     namePart = namePart.replace(/_+/g, '_').replace(/^_|_$/g, '');
 
+    // Suffix: yyyyMMddHHmmss
+    const now = new Date();
+    const timestamp = now.getFullYear().toString() +
+        (now.getMonth() + 1).toString().padStart(2, '0') +
+        now.getDate().toString().padStart(2, '0') +
+        now.getHours().toString().padStart(2, '0') +
+        now.getMinutes().toString().padStart(2, '0') +
+        now.getSeconds().toString().padStart(2, '0');
+
     // const finalApkName = `${title.replace(/[^a-z0-9]/gi, '_')}_${jobId.substring(0,8)}.apk`;
-    const finalApkName = `${namePart}_${jobId.substring(0, 8)}.apk`;
+    const finalApkName = `${namePart}_${timestamp}.apk`;
     const finalApkPath = path.join(RELEASES_DIR, finalApkName);
     await fs.ensureDir(RELEASES_DIR);
 
