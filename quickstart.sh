@@ -46,11 +46,20 @@ function build_dist {
     # Exclude 'sharp' because it relies on platform-specific binaries that shouldn't be bundled
     ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js --external:sharp
 
+    # Install Linux Dependencies for Sharp (Cross-Install using npm)
+    # This downloads the Linux binaries on macOS so they are included in 'dist'
+    echo ">>> Pre-installing 'sharp' (Linux x64) into dist/node_modules..."
+    cd dist
+    # create a dummy package.json to avoid searching up the tree
+    echo '{"name":"dist-deps","private":true}' > package.json
+    # npm install sharp matching the version in root package.json roughly (or just latest compatible)
+    npm install sharp@^0.34.5 --os=linux --cpu=x64 --force --no-save
+    # Remove dummy package.json and lockfile to keep it clean (optional, but node_modules remains)
+    rm package.json package-lock.json
+    cd ..
+
     # Copy Static Assets
     cp -r public dist/
-
-    # Copy package.json to allow installing native dependencies (like sharp) on the target server
-    cp package.json dist/
     
     # Copy Assets (Template & Keystore) - Place in root of dist (matches ../template.apk from dist/server/)
     if [ -f "template.apk" ]; then
@@ -145,15 +154,6 @@ elif [ "$COMMAND" == "prod" ]; then
     if ! command -v pm2 &> /dev/null; then
         echo ">>> Installing PM2 globally..."
         npm install -g pm2
-    fi
-
-    # 2.5 Ensure Runtime Dependencies (specifically for backend native modules like sharp)
-    if [ -d "dist" ] && [ -f "dist/package.json" ]; then
-        echo ">>> Installing/Updating production dependencies in ./dist (for native modules)..."
-        # We use npm here because pnpm might not be installed on prod server
-        cd dist
-        npm install --production --silent
-        cd ..
     fi
 
     # 3. Start/Restart Application
