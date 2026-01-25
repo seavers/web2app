@@ -8,12 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     generateBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
         if (!url) {
-            showStatus('Please enter a valid URL', 'error');
+            showStatus('请输入有效的网址', 'error');
             return;
         }
 
         if (!isValidUrl(url)) {
-            showStatus('Please enter a valid absolute URL (e.g. https://google.com)', 'error');
+            showStatus('请输入完整的 URL (例如: https://baidu.com)', 'error');
             return;
         }
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultDiv.innerHTML = '';
         generateBtn.disabled = true;
         loadingDiv.style.display = 'block';
-        showStatus('Generating your App... This may take a minute.', 'info');
+        showStatus('正在生成您的 App... 请稍候片刻。', 'info');
 
         try {
             const response = await fetch('/api/generate', {
@@ -35,23 +35,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Generation failed');
+                throw new Error(data.error || '生成失败');
             }
 
             // Success
             loadingDiv.style.display = 'none';
-            showStatus('App Generated Successfully!', 'success');
+            showStatus('App 生成成功!', 'success');
 
             const downloadLink = document.createElement('a');
             downloadLink.href = data.downloadUrl;
             downloadLink.className = 'download-link';
-            downloadLink.textContent = `Download ${data.filename}`;
+            downloadLink.textContent = `下载 ${data.filename}`;
             resultDiv.appendChild(downloadLink);
 
         } catch (error) {
             console.error(error);
             loadingDiv.style.display = 'none';
-            showStatus(`Error: ${error.message}`, 'error');
+            showStatus(`错误: ${error.message}`, 'error');
         } finally {
             generateBtn.disabled = false;
         }
