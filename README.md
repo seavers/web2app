@@ -6,43 +6,49 @@ A service to generate Android Apps (APKs) that wrap a specific Website URL.
 
 1.  **Node.js** (v24+) - Managed via `nvm`.
 2.  **pnpm**: Package manager.
-2.  **Java** (JDK 11+ recommended)
+2.  **Java** (JDK 17 recommended)
 3.  **Apktool**: Must be in your system PATH (`apktool`).
 4.  **Android SDK** (for building the template).
 
-## Quick Start
+## Quick Start (web2app.sh)
 
-We provide a `quickstart.sh` script to manage the project.
+We provide a `web2app.sh` script to manage the lifecycle of the project.
 
-### 1. Build the Template
+### 1. Build the Template (First Time)
 Before generating apps, you must build the base Android Template.
 ```bash
-./quickstart.sh app
+./web2app.sh build-apk
 ```
 *   This compiles the project in `android-template/` and places `template.apk` in the root.
-*   **Requirements**: You need Gradle or Android SDK configured.
+*   **Requirements**: You need Gradle or Android SDK configured (use `./web2app.sh setup-dev` to install).
 
 ### 2. Run Development Server
-To run the server with hot-reloading:
+To run the server locally with hot-reloading:
 ```bash
-./quickstart.sh dev
+./web2app.sh dev
 ```
 *   Access the UI at: http://localhost:3001
 
-### 3. Run Production Server
-To run in production mode:
+### 3. Production Deployment
+
+**Step A: Build Production Bundle**
+Compiles the Node.js server and assets into a standalone `dist/` directory.
 ```bash
-./quickstart.sh prod
-# OR simply
-./quickstart.sh
+./web2app.sh build
+```
+
+**Step B: Start Production Server**
+Starts or reloads the application using PM2. This command ensures dependencies are installed (including Linux-specific binaries) and manages the process.
+```bash
+./web2app.sh prod
 ```
 
 ## Configuration
 
+*   **config.json**: Manage runtime configurations like `port` and `appIdBase`.
 *   **Keystore**: Place your signing key as `web2app.keystore` in the root directory.
-    *   Update `server/generator.js` if you use different passwords/aliases.
-*   **Port**: Set `PORT` environment variable to change the link port (default 3001).
+*   **Environment**: `PORT` environment variable can override `config.json`.
 
 ## Documentation
 
-*   [API Documentation & JS Bridge](API_DOCS.md)
+*   [API Documentation & JS Bridge](API.md)
