@@ -40,12 +40,17 @@ function build_dist {
     pnpm install
 
     # Bundle Server with esbuild
+    # Bundle Server with esbuild
     echo ">>> Bundling server..."
     # We bundle to dist/server/index.js to manage relative paths (../public, ../template.apk) correctly
-    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js
+    # Exclude 'sharp' because it relies on platform-specific binaries that shouldn't be bundled
+    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js --external:sharp
 
     # Copy Static Assets
     cp -r public dist/
+
+    # Copy package.json to allow installing native dependencies (like sharp) on the target server
+    cp package.json dist/
     
     # Copy Assets (Template & Keystore) - Place in root of dist (matches ../template.apk from dist/server/)
     if [ -f "template.apk" ]; then
@@ -140,6 +145,15 @@ elif [ "$COMMAND" == "prod" ]; then
     if ! command -v pm2 &> /dev/null; then
         echo ">>> Installing PM2 globally..."
         npm install -g pm2
+    fi
+
+    # 2.5 Ensure Runtime Dependencies (specifically for backend native modules like sharp)
+    if [ -d "dist" ] && [ -f "dist/package.json" ]; then
+        echo ">>> Installing/Updating production dependencies in ./dist (for native modules)..."
+        # We use npm here because pnpm might not be installed on prod server
+        cd dist
+        npm install --production --silent
+        cd ..
     fi
 
     # 3. Start/Restart Application
