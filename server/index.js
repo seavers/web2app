@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { generateApk } = require('./generator');
+const { generateApk, extractMeta } = require('./generator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,14 +11,26 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/download', express.static(path.join(__dirname, '../releases')));
 
-app.post('/api/generate', async (req, res) => {
+app.post('/api/meta', async (req, res) => {
     const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    try {
+        const meta = await extractMeta(url);
+        res.json(meta);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch metadata' });
+    }
+});
+
+app.post('/api/generate', async (req, res) => {
+    const { url, appName } = req.body;
     if (!url) {
         return res.status(400).json({ error: 'URL is required' });
     }
 
     try {
-        const filename = await generateApk(url);
+        const filename = await generateApk(url, appName);
         res.json({
             success: true,
             downloadUrl: `/download/${filename}`,

@@ -15,11 +15,50 @@ const KEY_ALIAS = 'my-key-alias';
 const KEY_PASS = 'password';
 const STORE_PASS = 'password';
 
+const getSmartTitle = (fullTitle) => {
+    if (!fullTitle) return 'My App';
+
+    // Stop words to exclude
+    const stopWords = ['home', 'homepage', 'index', 'welcome', 'main', 'page', 'archive', 'category', 'tag', 'default', 'untitled'];
+
+    // Separators to split by
+    const parts = fullTitle.split(/[-|–:\|]/).map(p => p.trim()).filter(p => p.length > 0);
+
+    // Strategy:
+    // 1. Look for the longest part that is NOT just a stop word.
+    // 2. OR if all are stop words, just take the first part.
+    // 3. Prefer parts at the ends (often Brand Name).
+
+    let bestPart = parts[0];
+
+    // Usually the Brand is at the end "Article Title - Brand Name" or at start "Brand Name - Slogan"
+    // Let's try to pick the shortest relevant part for "App Name" (usually Brand), 
+    // OR the most descriptive part if it's a specific page.
+
+    // For App Name, shorter is usually better but must be meaningful.
+    // Let's filter out stop words first.
+    const relevantParts = parts.filter(p => !stopWords.includes(p.toLowerCase()));
+
+    if (relevantParts.length > 0) {
+        // Heuristic: If there are multiple parts, the one with 2-15 chars is likely a good Brand Name.
+        const brandLike = relevantParts.find(p => p.length >= 2 && p.length <= 15);
+        if (brandLike) {
+            bestPart = brandLike;
+        } else {
+            // Otherwise take the first relevant part
+            bestPart = relevantParts[0];
+        }
+    }
+
+    return bestPart;
+};
+
 async function extractMeta(url) {
     try {
         const res = await axios.get(url);
         const $ = cheerio.load(res.data);
-        const title = $('title').text() || 'My App';
+        const fullTitle = $('title').text() || '';
+        const smartTitle = getSmartTitle(fullTitle);
 
         let icon = '';
         const iconRel = $('link[rel*="icon"]').attr('href');
@@ -35,10 +74,10 @@ async function extractMeta(url) {
             icon = `${urlObj.origin}/favicon.ico`;
         }
 
-        return { title, icon };
+        return { title: smartTitle, icon, fullTitle };
     } catch (e) {
         console.error('Error fetching meta:', e);
-        return { title: 'Generated App', icon: '' };
+        return { title: 'Generated App', icon: '', fullTitle: '' };
     }
 }
 
@@ -116,15 +155,19 @@ function runCommand(cmd, cwd) {
     });
 }
 
-async function generateApk(targetUrl) {
+async function generateApk(targetUrl, customAppName) {
     const jobId = uuidv4();
     const workDir = path.join(TEMP_DIR, jobId);
 
     // 1. Prepare Workspace
     await fs.ensureDir(workDir);
 
-    // 2. Extract Metadata (Title, Icon)
-    const { title, icon } = await extractMeta(targetUrl);
+    // 2. Extract Metadata (Title, Icon) - Only if custom name not provided, but we still need icon.
+    // Actually we might need icon always.
+    const meta = await extractMeta(targetUrl);
+    const title = customAppName || meta.title;
+    const icon = meta.icon;
+
     console.log(`Generating app for: ${targetUrl}, Title: ${title}, Icon: ${icon}`);
 
     // 3. Decompile Template
@@ -229,4 +272,4 @@ async function generateApk(targetUrl) {
     return finalApkName;
 }
 
-module.exports = { generateApk };
+module.exports = { generateApk, extractMeta };
