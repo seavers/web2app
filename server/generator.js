@@ -117,11 +117,13 @@ async function extractMeta(url) {
         await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
+    console.log(`[Meta] Final Effective URL: ${finalUrl}`);
+
     // Default return structure
     const getDefaults = () => {
         const smartTitle = getSmartTitle('', url);
         // Try to guess favicon location if we failed to fetch page
-        const u = new URL(url);
+        const u = new URL(finalUrl || url);
         const icon = `${u.origin}/favicon.ico`;
         return { title: smartTitle, icon, fullTitle: '' };
     };
