@@ -5,7 +5,7 @@ node_modules/
 # Build outputs
 temp/
 releases/
-dist/
+# dist/ (Un-ignored to support checking in production builds)
 
 # Android
 .gradle/
