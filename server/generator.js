@@ -260,6 +260,7 @@ async function getOrCreateKeystore(hostname) {
 }
 
 async function generateApk(targetUrl, customAppName, customIconUrl) {
+    const startTime = Date.now();
     const jobId = uuidv4();
     const workDir = path.join(TEMP_DIR, jobId);
 
@@ -397,7 +398,8 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     // Generate Log
     const stats = await fs.stat(finalApkPath);
     const sizeInMb = (stats.size / 1024 / 1024).toFixed(2);
-    console.log(`[Build] Success! APK: releases/${finalApkName} (${sizeInMb} MB)`);
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Build] Success! APK: releases/${finalApkName} (${sizeInMb} MB) in ${duration}s`);
 
     // Cleanup
     try {
