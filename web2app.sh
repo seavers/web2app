@@ -24,11 +24,13 @@ fi
 
 # Try to load nvm if available
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" > /dev/null 2>&1
 
 # Set Node Version (try 24, fallback silently)
+# Set Node Version (try 24, fallback silently)
 if command -v nvm &> /dev/null; then
-    nvm use 24 > /dev/null 2>&1 || true
+    # Try using nvm silently, ignoring errors related to prefix
+    nvm use 24 --silent > /dev/null 2>&1 || true
 fi
 
 function build_dist {
