@@ -10,7 +10,7 @@ function show_help {
     echo "  dev        - Install dependencies and start local development server (with hot-reload)."
     echo "  apk        - Build the Android Template APK (requires Gradle/Android SDK)."
     echo "  build      - Bundle self-contained production server into ./dist."
-    echo "  prod       - (Default) Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
+    echo "  prod       - Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
     echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
     echo "  setup-dev  - Install Full Android SDK (for building templates)."
     echo "  setup-mac  - Install development tools on macOS (via Homebrew)."
@@ -18,7 +18,8 @@ function show_help {
 }
 
 if [ -z "$COMMAND" ]; then
-    COMMAND="prod"
+    show_help
+    exit 0
 fi
 
 # Try to load nvm if available
