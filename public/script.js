@@ -179,8 +179,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function isValidUrl(string) {
         try {
-            new URL(string);
-            return true;
+            const url = new URL(string);
+            // Must have protocol http/https
+            if (!['http:', 'https:'].includes(url.protocol)) return false;
+
+            // Check User Requirements:
+            // 1. Ends with '/'
+            if (string.endsWith('/')) return true;
+
+            // 2. Or ends with common TLD
+            // Note: This matches if the string ENDS with the TLD.
+            // e.g. "https://google.com" -> OK. "https://google.com/foo" -> fails TLD check, but needs to check if it has path?
+            // User said: "域名后有 /". If it has path, it has '/'.
+            // So logic:
+            // If path is not root ('/'), it implies there was a slash after domain.
+            // But 'new URL' normalizes 'http://google.com' to path '/'.
+
+            // Re-reading user: "ends with .com... OR domain has /". 
+            // If I type "https://google.com/a", I am typing a path. The slash is present.
+            // The user wants to avoid "https://google.c" triggering.
+
+            // So:
+            // Condition A: Contains a slash AFTER the double-slash // and domain. 
+            // i.e. count of '/' > 2? 
+            // "https://google.com" -> 2 slashes.
+            // "https://google.com/" -> 3 slashes.
+
+            // Condition B: Ends with valid TLD.
+
+            const commonTlds = /\.(com|cn|net|org|io|gov|edu|xyz|top|vip|info|biz|co|me|cc|tv|us|uk|hk|tw|jp|kr)$/i;
+
+            if (commonTlds.test(string)) return true;
+
+            // If it has a path (more than just the domain), it's "finished" enough?
+            // "https://abc.com/d" -> "d" is not TLD. But it has path.
+            // User said "or date has /". "域名后有 /".
+
+            // Let's rely on the URL object's pathname.
+            // If url.pathname.length > 1 (meaning more than just ''), it implies it has a path.
+            // Wait, new URL('http://a.com') -> pathname is '/'.
+
+            // Let's use string analysis for "finished typing" feel.
+            const noProtocol = string.replace(/^https?:\/\//, '');
+            if (noProtocol.includes('/')) return true; // Has path separation
+
+            return false;
         } catch (_) {
             return false;
         }
