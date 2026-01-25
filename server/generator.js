@@ -165,7 +165,18 @@ async function generateApk(targetUrl) {
     await runCommand(`apktool b "${decodedDir}" -o "${unsignedApk}"`, workDir);
 
     // 7. Sign APK
-    const finalApkName = `${title.replace(/[^a-z0-9]/gi, '_')}_${jobId.substring(0, 8)}.apk`;
+    // Naming convention: Domain_Path_JobId
+    // e.g. dahai_online_blog_archive_12345678.apk
+    const urlObj = new URL(targetUrl);
+    let namePart = urlObj.hostname.replace('www.', '').replace(/\./g, '_');
+    if (urlObj.pathname && urlObj.pathname !== '/') {
+        namePart += urlObj.pathname.replace(/[^a-zA-Z0-9]/g, '_');
+    }
+    // Remove duplicate underscores and cleanup
+    namePart = namePart.replace(/_+/g, '_').replace(/^_|_$/g, '');
+
+    // const finalApkName = `${title.replace(/[^a-z0-9]/gi, '_')}_${jobId.substring(0,8)}.apk`;
+    const finalApkName = `${namePart}_${jobId.substring(0, 8)}.apk`;
     const finalApkPath = path.join(RELEASES_DIR, finalApkName);
     await fs.ensureDir(RELEASES_DIR);
 
