@@ -4,7 +4,15 @@ const path = require('path');
 const { generateApk, extractMeta } = require('./generator');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+
+let config = {};
+try {
+    config = require('../config.json');
+} catch (e) {
+    console.warn("Warning: config.json not found, using defaults");
+}
+
+const PORT = process.env.PORT || config.port || 3001;
 
 app.use(cors());
 app.use(express.json());

@@ -284,16 +284,23 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     // 3.5 Update Package Name (Unique Application ID)
     // STRATEGY: Only change the Manifest Identity and Provider Authorities.
     // KEEP the Java/Smali class implementation names (com.example.web2app.MainActivity) untouched.
-    
-    const BASE_PACKAGE_PREFIX = process.env.APP_ID_BASE || 'online.dahai.web2app';
+
+    let config = {};
+    try {
+        // Reload config each time to support runtime changes
+        delete require.cache[require.resolve('../config.json')];
+        config = require('../config.json');
+    } catch (e) { /* ignore */ }
+
+    const BASE_PACKAGE_PREFIX = process.env.APP_ID_BASE || config.appIdBase || 'online.dahai.web2app';
     const oldPackageName = 'com.example.web2app';
-    
+
     // New Package Name
     const urlObjForPkg = new URL(targetUrl);
     let pkgSuffix = urlObjForPkg.hostname.replace(/[^a-zA-Z0-9]/g, '_');
     if (/^\d/.test(pkgSuffix)) pkgSuffix = 'app_' + pkgSuffix;
     const newPackageName = `${BASE_PACKAGE_PREFIX}.${pkgSuffix}`;
-    
+
     console.log(`[Re-Package] Updating Manifest ID: ${oldPackageName} -> ${newPackageName}`);
 
     const manifestPath = path.join(decodedDir, 'AndroidManifest.xml');
@@ -313,7 +320,7 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     manifestContent = manifestContent.replace(/android:name="com\.example\.web2app\.DYNAMIC/g, `android:name="${newPackageName}.DYNAMIC`);
 
     // NOTE: We do NOT replace "com.example.web2app.MainActivity" because the code implementation didn't move.
-    
+
     await fs.writeFile(manifestPath, manifestContent);
 
     // 4. Update Resources (strings.xml)
