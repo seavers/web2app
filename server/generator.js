@@ -411,6 +411,11 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     // Cleanup
     // await fs.remove(workDir); // Keep for debug for now
 
+    // Generate Log
+    const stats = await fs.stat(finalApkPath);
+    const sizeInMb = (stats.size / 1024 / 1024).toFixed(2);
+    console.log(`[Build] Success! APK: releases/${finalApkName} (${sizeInMb} MB)`);
+
     return finalApkName;
 }
 
