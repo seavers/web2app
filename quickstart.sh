@@ -9,7 +9,7 @@ function show_help {
     echo ""
     echo "  dev   - Install dependencies and start local development server (with hot-reload)."
     echo "  app   - Build the Android Template APK (requires Gradle/Android SDK)."
-    echo "  prod  - (Default) Build production-ready code into ./dist directory."
+    echo "  prod  - (Default) Bundle self-contained production server into ./dist."
     echo ""
 }
 
@@ -75,17 +75,20 @@ elif [ "$COMMAND" == "prod" ]; then
     
     # Clean dist
     rm -rf dist
-    mkdir -p dist
+    mkdir -p dist/server
 
-    # Install dependencies
+    # Install dependencies (ensure esbuild is available)
     pnpm install
 
-    # Copy Source Code
-    cp -r server dist/
-    cp -r public dist/
-    cp package.json dist/
+    # Bundle Server with esbuild
+    echo ">>> Bundling server..."
+    # We bundle to dist/server/index.js to manage relative paths (../public, ../template.apk) correctly
+    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js
 
-    # Copy Assets (Template & Keystore)
+    # Copy Static Assets
+    cp -r public dist/
+    
+    # Copy Assets (Template & Keystore) - Place in root of dist (matches ../template.apk from dist/server/)
     if [ -f "template.apk" ]; then
         cp template.apk dist/
     else
@@ -98,11 +101,6 @@ elif [ "$COMMAND" == "prod" ]; then
         echo "WARNING: web2app.keystore not found."
     fi
 
-    # Install Production Dependencies in dist
-    cd dist
-    echo ">>> Installing dependencies in ./dist..."
-    pnpm install --prod
-    
     echo ">>> Production build ready in ./dist"
     echo ">>> To run: cd dist && node server/index.js"
 
