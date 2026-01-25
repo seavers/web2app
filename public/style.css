@@ -33,6 +33,7 @@ h1 {
     color: #2c3e50;
     background: -webkit-linear-gradient(#4a90e2, #2c3e50);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -60,6 +61,35 @@ input[type="url"]:focus,
 input[type="text"]:focus {
     border-color: var(--primary-color);
     box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 80%;
+    margin: 0 auto;
+    /* Center the wrapper like the inputs were */
+}
+
+.input-wrapper input[type="text"] {
+    width: 100%;
+    /* Take remaining space */
+    margin: 0;
+}
+
+#appIconPreview {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    display: none;
+    /* Hidden by default */
+    animation: fadeIn 0.5s;
 }
 
 .generate-btn {

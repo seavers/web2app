@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlInput = document.getElementById('urlInput');
     const appNameGroup = document.getElementById('appNameGroup');
     const appNameInput = document.getElementById('appNameInput');
+    const appIconPreview = document.getElementById('appIconPreview');
     const statusDiv = document.getElementById('status');
     const loadingDiv = document.getElementById('loading');
     const resultDiv = document.getElementById('result');
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide name group if URL is cleared
         if (!url) {
             appNameGroup.style.display = 'none';
+            appIconPreview.style.display = 'none';
             return;
         }
 
@@ -43,6 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Only fill if user hasn't manually edited it yet (heuristic)
                 // or simply overwrite for now as it's a suggestion
                 appNameInput.value = data.title;
+            }
+
+            if (data.icon) {
+                appIconPreview.src = data.icon;
+                appIconPreview.style.display = 'block';
+            } else {
+                appIconPreview.style.display = 'none';
             }
         } catch (e) {
             console.error('Meta fetch failed', e);

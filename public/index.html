@@ -20,9 +20,12 @@
 
         <div class="input-group" id="appNameGroup" style="display: none; animation: fadeIn 0.5s;">
             <label for="appNameInput"
-                style="display: block; text-align: left; margin-bottom: 8px; color: #666; font-size: 14px;">App
+                style="display: block; text-align: left; margin-bottom: 8px; color: #666; font-size: 14px; width: 80%; margin-left: auto; margin-right: auto;">App
                 名称</label>
-            <input type="text" id="appNameInput" placeholder="正在获取推荐标题..." required>
+            <div class="input-wrapper">
+                <img id="appIconPreview" src="" alt="App Icon">
+                <input type="text" id="appNameInput" placeholder="正在获取推荐标题..." required>
+            </div>
         </div>
 
         <button id="generateBtn" class="generate-btn">生成 App</button>
