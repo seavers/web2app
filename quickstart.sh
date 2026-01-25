@@ -5,13 +5,12 @@
 COMMAND=$1
 
 function show_help {
-    echo "Usage: ./quickstart.sh [dev|app|prod]"
+    echo "Usage: ./quickstart.sh [dev|apk|build|prod|setup-prod|setup-dev|setup-mac]"
     echo ""
-    echo "  dev   - Install dependencies and start local development server (with hot-reload)."
-    echo "  app   - Build the Android Template APK (requires Gradle/Android SDK)."
-    echo "  prod  - (Default) Bundle self-contained production server into ./dist."
-    echo "  prod  - (Default) Bundle self-contained production server into ./dist."
-    echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
+    echo "  dev        - Install dependencies and start local development server (with hot-reload)."
+    echo "  apk        - Build the Android Template APK (requires Gradle/Android SDK)."
+    echo "  build      - Bundle self-contained production server into ./dist."
+    echo "  prod       - (Default) Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
     echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
     echo "  setup-dev  - Install Full Android SDK (for building templates)."
     echo "  setup-mac  - Install development tools on macOS (via Homebrew)."
@@ -26,8 +25,47 @@ fi
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-# Set Node Version
-nvm use 24 || echo "nvm not found or version 24 not installed, continuing with current node..."
+# Set Node Version (try 24, fallback silently)
+nvm use 24 > /dev/null 2>&1 || true
+
+function build_dist {
+    echo ">>> Building Production Release to ./dist..."
+    
+    # Clean dist
+    rm -rf dist
+    mkdir -p dist/server
+
+    # Install dependencies (ensure esbuild is available)
+    pnpm install
+
+    # Bundle Server with esbuild
+    echo ">>> Bundling server..."
+    # We bundle to dist/server/index.js to manage relative paths (../public, ../template.apk) correctly
+    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js
+
+    # Copy Static Assets
+    cp -r public dist/
+    
+    # Copy Assets (Template & Keystore) - Place in root of dist (matches ../template.apk from dist/server/)
+    if [ -f "template.apk" ]; then
+        cp template.apk dist/
+    else
+        echo "WARNING: template.apk not found. Production build might fail to generate apps."
+    fi
+
+    if [ -f "web2app.keystore" ]; then
+        cp web2app.keystore dist/
+    else
+        echo "WARNING: web2app.keystore not found."
+    fi
+
+    if [ -f "config.json" ]; then
+        cp config.json dist/
+        echo ">>> Copied config.json."
+    fi
+
+    echo ">>> Production build ready in ./dist"
+}
 
 if [ "$COMMAND" == "dev" ]; then
 
@@ -36,7 +74,7 @@ if [ "$COMMAND" == "dev" ]; then
     echo ">>> Starting Server (Dev Mode)..."
     pnpm run dev
 
-elif [ "$COMMAND" == "app" ]; then
+elif [ "$COMMAND" == "apk" ]; then
     echo ">>> Building Android Template..."
     
     # Check for Android SDK
@@ -75,44 +113,56 @@ elif [ "$COMMAND" == "app" ]; then
     
     cd ..
 
+elif [ "$COMMAND" == "build" ]; then
+    build_dist
+
 elif [ "$COMMAND" == "prod" ]; then
-    echo ">>> Building Production Release to ./dist..."
-    
-    # Clean dist
-    rm -rf dist
-    mkdir -p dist/server
+    # Server Deployment / Restart Script
+    echo ">>> Starting Production Deployment..."
 
-    # Install dependencies (ensure esbuild is available)
-    pnpm install
+    # 1. Check and Install APK Tools
+    echo ">>> Checking APK Tools..."
+    MISSING_TOOLS=0
+    if ! command -v apktool &> /dev/null; then MISSING_TOOLS=1; fi
+    if ! command -v apksigner &> /dev/null; then MISSING_TOOLS=1; fi
+    if ! command -v zipalign &> /dev/null; then MISSING_TOOLS=1; fi
 
-    # Bundle Server with esbuild
-    echo ">>> Bundling server..."
-    # We bundle to dist/server/index.js to manage relative paths (../public, ../template.apk) correctly
-    ./node_modules/.bin/esbuild server/index.js --bundle --platform=node --outfile=dist/server/index.js
-
-    # Copy Static Assets
-    cp -r public dist/
-    
-    # Copy Assets (Template & Keystore) - Place in root of dist (matches ../template.apk from dist/server/)
-    if [ -f "template.apk" ]; then
-        cp template.apk dist/
+    if [ $MISSING_TOOLS -eq 1 ]; then
+        echo ">>> Missing required tools (apktool/apksigner/zipalign)."
+        echo ">>> Attempting auto-setup (requires sudo/root)..."
+        ./quickstart.sh setup-prod
     else
-        echo "WARNING: template.apk not found. Production build might fail to generate apps."
+        echo ">>> APK Tools are ready."
     fi
 
-    if [ -f "web2app.keystore" ]; then
-        cp web2app.keystore dist/
+    # 2. Check and Install PM2
+    if ! command -v pm2 &> /dev/null; then
+        echo ">>> Installing PM2 globally..."
+        npm install -g pm2
+    fi
+
+    # 3. Start/Restart Application
+    echo ">>> Managing Process with PM2..."
+    
+    # Ensure dist exists (basic check)
+    if [ ! -f "dist/server/index.js" ]; then
+        echo "WARNING: dist/server/index.js not found. You might need to run './quickstart.sh build' first if this is a fresh clone."
+        # Optional: Auto build?
+        # build_dist
+    fi
+
+    # Check if process exists and restart, else start
+    if pm2 list | grep -q "web2app"; then
+        echo ">>> Reloading web2app..."
+        pm2 reload web2app
     else
-        echo "WARNING: web2app.keystore not found."
+        echo ">>> Starting web2app..."
+        pm2 start dist/server/index.js --name web2app
     fi
-
-    if [ -f "config.json" ]; then
-        cp config.json dist/
-        echo ">>> Copied config.json."
-    fi
-
-    echo ">>> Production build ready in ./dist"
-    echo ">>> To run: cd dist && node server/index.js"
+    
+    pm2 save
+    echo ">>> Deployment Complete. Application is running."
+    echo ">>> Monitor with: pm2 monit"
 
 elif [ "$COMMAND" == "setup-prod" ]; then
     echo ">>> Installing Production Dependencies (Ubuntu/Debian)..."
@@ -188,8 +238,6 @@ elif [ "$COMMAND" == "setup-mac" ]; then
     brew install apktool
 
     # 3. Install Android SDK Tools (usually via Cask or cmdline-tools)
-    # Note: 'brew install --cask android-commandlinetools' is common, or full studio
-    # For CI/CLI only:
     echo ">>> Installing Android Command Line Tools..."
     brew install --cask android-commandlinetools
 
