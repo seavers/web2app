@@ -259,40 +259,112 @@ async function getOrCreateKeystore(hostname) {
     return keystorePath;
 }
 
+async function replaceInFile(filePath, replacements) {
+    let content = await fs.readFile(filePath, 'utf-8');
+    let changed = false;
+    for (const [from, to] of replacements) {
+        if (content.includes(from)) {
+            content = content.split(from).join(to);
+            changed = true;
+        }
+    }
+    if (changed) {
+        await fs.writeFile(filePath, content);
+    }
+}
+
+async function processDirectory(dir, replacements) {
+    const files = await fs.readdir(dir);
+    for (const file of files) {
+        const filePath = path.join(dir, file);
+        const stat = await fs.stat(filePath);
+        if (stat.isDirectory()) {
+            await processDirectory(filePath, replacements);
+        } else if (file.endsWith('.smali') || file.endsWith('.xml') || file.endsWith('.yml')) {
+            await replaceInFile(filePath, replacements);
+        }
+    }
+}
+
 async function generateApk(targetUrl, customAppName, customIconUrl) {
     const jobId = uuidv4();
     const workDir = path.join(TEMP_DIR, jobId);
 
-    // 1. Prepare Workspace (Copy Source Template)
-    const ANDROID_TEMPLATE = path.join(__dirname, '../android-template');
+    // 1. Prepare Workspace
     await fs.ensureDir(workDir);
-    await fs.copy(ANDROID_TEMPLATE, workDir);
 
-    // 2. Extract Metadata & Prepare Config
+    // 2. Extract Metadata (Title, Icon)
     const meta = await extractMeta(targetUrl);
     const title = customAppName || meta.title;
     const icon = customIconUrl || meta.icon; // Priority: custom > meta
 
     console.log(`Generating app for: ${targetUrl}, Title: ${title}, Icon: ${icon}`);
 
-    // 3. Configure Package Name (Application ID)
+    // 3. Decompile Template
+    if (!fs.existsSync(TEMPLATE_APK)) {
+        throw new Error("template.apk not found in root directory!");
+    }
+
+    const decodedDir = path.join(workDir, 'decoded');
+    await runCommand(`apktool d "${TEMPLATE_APK}" -o "${decodedDir}" -f`, workDir);
+
+    // 3.5 Update Package Name (Unique Application ID)
     const BASE_PACKAGE_PREFIX = process.env.APP_ID_BASE || 'online.dahai.web2app';
+    const oldPackageName = 'com.example.web2app';
+
+    // New Package Name
     const urlObjForPkg = new URL(targetUrl);
     let pkgSuffix = urlObjForPkg.hostname.replace(/[^a-zA-Z0-9]/g, '_');
     if (/^\d/.test(pkgSuffix)) pkgSuffix = 'app_' + pkgSuffix;
     const newPackageName = `${BASE_PACKAGE_PREFIX}.${pkgSuffix}`;
 
-    console.log(`[Config] New Package Name: ${newPackageName}`);
+    console.log(`[Re-Package] Transforming ${oldPackageName} -> ${newPackageName}`);
 
-    // Update build.gradle
-    const buildGradlePath = path.join(workDir, 'app/build.gradle');
-    let buildGradleContent = await fs.readFile(buildGradlePath, 'utf-8');
-    buildGradleContent = buildGradleContent.replace(/applicationId "com.example.web2app"/, `applicationId "${newPackageName}"`);
-    await fs.writeFile(buildGradlePath, buildGradleContent);
+    // replacements: [ [oldString, newString], ... ]
+    const oldPath = oldPackageName.replace(/\./g, '/'); // com/example/web2app
+    const newPath = newPackageName.replace(/\./g, '/'); // online/dahai/...
+
+    const replacements = [
+        [oldPackageName, newPackageName],      // com.example.web2app -> online.dahai...
+        [oldPath, newPath]                     // com/example/web2app -> online/dahai... (for smali)
+    ];
+
+    // A. Replace string contents in ALL files (Manifest, Res, Smali, YML)
+    // We strictly need to be careful but for this template it is safe.
+    await processDirectory(decodedDir, replacements);
+
+    // B. Move Smali Directories
+    // Support smali, smali_classes2, etc.
+    const dirs = await fs.readdir(decodedDir);
+    const smaliDirs = dirs.filter(d => d.startsWith('smali'));
+
+    for (const smaliDirName of smaliDirs) {
+        const rootSmaliDir = path.join(decodedDir, smaliDirName);
+        const oldClassDir = path.join(rootSmaliDir, oldPath);
+        const newClassDir = path.join(rootSmaliDir, newPath);
+
+        if (fs.existsSync(oldClassDir)) {
+            await fs.ensureDir(newClassDir);
+            await fs.copy(oldClassDir, newClassDir);
+            await fs.remove(oldClassDir);
+
+            // Cleanup empty parent dirs for old path (optional but clean)
+            // e.g. remove smali/com/example if web2app was the only child
+            // Simple approach: try remove com/example/web2app (already removed), com/example, com
+            const oldPathParts = oldPath.split('/');
+            let currentPath = rootSmaliDir;
+            // Iterate from full path upwards?
+            // Actually fs.remove removes recursive.
+            // Check if parent empty?
+            // Let's simpler: just leave empty dirs, they don't hurt apk logic.
+        }
+    }
 
     // 4. Update Resources (strings.xml)
-    const stringsPath = path.join(workDir, 'app/src/main/res/values/strings.xml');
+    // Note: The path might have changed if we processed resources but strings.xml is in res/values/
+    const stringsPath = path.join(decodedDir, 'res/values/strings.xml');
     let stringsXml = await fs.readFile(stringsPath, 'utf-8');
+    // We already replaced package name in file content, but we still need to set app specific values
     stringsXml = stringsXml.replace(/<string name="app_name">.*?<\/string>/, `<string name="app_name">${title}</string>`);
     stringsXml = stringsXml.replace(/<string name="start_url">.*?<\/string>/, `<string name="start_url">${targetUrl}</string>`);
     await fs.writeFile(stringsPath, stringsXml);
@@ -302,36 +374,15 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
         try {
             const iconPath = path.join(workDir, 'icon.png');
             await downloadIcon(icon, iconPath);
-            await startProcessingIcon(iconPath, path.join(workDir, 'app/src/main/res'));
+            await startProcessingIcon(iconPath, path.join(decodedDir, 'res'));
         } catch (e) {
             console.error("Failed to process icon, using default.", e);
         }
     }
 
-    // 6. Build APK using Gradle
-    console.log('[Build] Starting Gradle Build...');
-    await runCommand('chmod +x gradlew', workDir);
-
-    // Use assembleRelease. 
-    // Note: Since we don't have a signing config in gradle, it typically produces `app-release-unsigned.apk`.
-    try {
-        await runCommand('./gradlew app:assembleRelease', workDir);
-    } catch (e) {
-        console.error('Gradle build failed:', e);
-        throw new Error('Gradle build failed. Check logs.');
-    }
-
-    const apkOutputDir = path.join(workDir, 'app/build/outputs/apk/release');
-    let unsignedApkName = 'app-release-unsigned.apk';
-    // Fallback search for apk if name differs
-    if (!fs.existsSync(path.join(apkOutputDir, unsignedApkName))) {
-        const files = await fs.readdir(apkOutputDir);
-        const apkFile = files.find(f => f.endsWith('.apk'));
-        if (apkFile) unsignedApkName = apkFile;
-        else throw new Error('Gradle build finished but APK not found.');
-    }
-
-    const unsignedApk = path.join(apkOutputDir, unsignedApkName);
+    // 6. Build APK
+    const unsignedApk = path.join(workDir, 'unsigned.apk');
+    await runCommand(`apktool b "${decodedDir}" -o "${unsignedApk}"`, workDir);
 
     // 7. Sign APK
     // Naming convention: Domain_Path_JobId
@@ -340,10 +391,8 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     if (urlObj.pathname && urlObj.pathname !== '/') {
         namePart += urlObj.pathname.replace(/[^a-zA-Z0-9]/g, '_');
     }
-    // Remove duplicate underscores and cleanup
     namePart = namePart.replace(/_+/g, '_').replace(/^_|_$/g, '');
 
-    // Suffix: yyyyMMddHHmmss
     const now = new Date();
     const timestamp = now.getFullYear().toString() +
         (now.getMonth() + 1).toString().padStart(2, '0') +
@@ -370,7 +419,6 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
         throw new Error("Keystore not found after generation attempt.");
     }
 
-    // Zipalign (Recommended before signing)
     const alignedApk = path.join(workDir, 'aligned.apk');
     try {
         await runCommand(`zipalign -p -f -v 4 "${unsignedApk}" "${alignedApk}"`, workDir);
@@ -379,24 +427,149 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
         await fs.copy(unsignedApk, alignedApk);
     }
 
-    // Sign with apksigner
     await runCommand(`apksigner sign --ks "${currentKeystorePath}" --ks-pass pass:${STORE_PASS} --key-pass pass:${KEY_PASS} --out "${finalApkPath}" "${alignedApk}"`, workDir);
 
-    // Remove the .idsig file generated by apksigner
+    // Remove .idsig
     const idsigPath = `${finalApkPath}.idsig`;
-    if (fs.existsSync(idsigPath)) {
-        await fs.remove(idsigPath);
-    }
+    if (fs.existsSync(idsigPath)) await fs.remove(idsigPath);
 
     // Generate Log
     const stats = await fs.stat(finalApkPath);
     const sizeInMb = (stats.size / 1024 / 1024).toFixed(2);
     console.log(`[Build] Success! APK: releases/${finalApkName} (${sizeInMb} MB)`);
 
-    // Cleanup (optional, maybe keep for debug)
+    // Cleanup
     // await fs.remove(workDir);
 
     return finalApkName;
+}
+const title = customAppName || meta.title;
+const icon = customIconUrl || meta.icon; // Priority: custom > meta
+
+console.log(`Generating app for: ${targetUrl}, Title: ${title}, Icon: ${icon}`);
+
+// 3. Configure Package Name (Application ID)
+const BASE_PACKAGE_PREFIX = process.env.APP_ID_BASE || 'online.dahai.web2app';
+const urlObjForPkg = new URL(targetUrl);
+let pkgSuffix = urlObjForPkg.hostname.replace(/[^a-zA-Z0-9]/g, '_');
+if (/^\d/.test(pkgSuffix)) pkgSuffix = 'app_' + pkgSuffix;
+const newPackageName = `${BASE_PACKAGE_PREFIX}.${pkgSuffix}`;
+
+console.log(`[Config] New Package Name: ${newPackageName}`);
+
+// Update build.gradle
+const buildGradlePath = path.join(workDir, 'app/build.gradle');
+let buildGradleContent = await fs.readFile(buildGradlePath, 'utf-8');
+buildGradleContent = buildGradleContent.replace(/applicationId "com.example.web2app"/, `applicationId "${newPackageName}"`);
+await fs.writeFile(buildGradlePath, buildGradleContent);
+
+// 4. Update Resources (strings.xml)
+const stringsPath = path.join(workDir, 'app/src/main/res/values/strings.xml');
+let stringsXml = await fs.readFile(stringsPath, 'utf-8');
+stringsXml = stringsXml.replace(/<string name="app_name">.*?<\/string>/, `<string name="app_name">${title}</string>`);
+stringsXml = stringsXml.replace(/<string name="start_url">.*?<\/string>/, `<string name="start_url">${targetUrl}</string>`);
+await fs.writeFile(stringsPath, stringsXml);
+
+// 5. Update Icon
+if (icon) {
+    try {
+        const iconPath = path.join(workDir, 'icon.png');
+        await downloadIcon(icon, iconPath);
+        await startProcessingIcon(iconPath, path.join(workDir, 'app/src/main/res'));
+    } catch (e) {
+        console.error("Failed to process icon, using default.", e);
+    }
+}
+
+// 6. Build APK using Gradle
+console.log('[Build] Starting Gradle Build...');
+await runCommand('chmod +x gradlew', workDir);
+
+// Use assembleRelease. 
+// Note: Since we don't have a signing config in gradle, it typically produces `app-release-unsigned.apk`.
+try {
+    await runCommand('./gradlew app:assembleRelease', workDir);
+} catch (e) {
+    console.error('Gradle build failed:', e);
+    throw new Error('Gradle build failed. Check logs.');
+}
+
+const apkOutputDir = path.join(workDir, 'app/build/outputs/apk/release');
+let unsignedApkName = 'app-release-unsigned.apk';
+// Fallback search for apk if name differs
+if (!fs.existsSync(path.join(apkOutputDir, unsignedApkName))) {
+    const files = await fs.readdir(apkOutputDir);
+    const apkFile = files.find(f => f.endsWith('.apk'));
+    if (apkFile) unsignedApkName = apkFile;
+    else throw new Error('Gradle build finished but APK not found.');
+}
+
+const unsignedApk = path.join(apkOutputDir, unsignedApkName);
+
+// 7. Sign APK
+// Naming convention: Domain_Path_JobId
+const urlObj = new URL(targetUrl);
+let namePart = urlObj.hostname.replace('www.', '').replace(/\./g, '_');
+if (urlObj.pathname && urlObj.pathname !== '/') {
+    namePart += urlObj.pathname.replace(/[^a-zA-Z0-9]/g, '_');
+}
+// Remove duplicate underscores and cleanup
+namePart = namePart.replace(/_+/g, '_').replace(/^_|_$/g, '');
+
+// Suffix: yyyyMMddHHmmss
+const now = new Date();
+const timestamp = now.getFullYear().toString() +
+    (now.getMonth() + 1).toString().padStart(2, '0') +
+    now.getDate().toString().padStart(2, '0') +
+    now.getHours().toString().padStart(2, '0') +
+    now.getMinutes().toString().padStart(2, '0') +
+    now.getSeconds().toString().padStart(2, '0');
+
+const finalApkName = `${namePart}_${timestamp}.apk`;
+const finalApkPath = path.join(RELEASES_DIR, finalApkName);
+await fs.ensureDir(RELEASES_DIR);
+
+// Using dynamic keystore based on hostname
+const hostname = urlObj.hostname;
+let currentKeystorePath;
+try {
+    currentKeystorePath = await getOrCreateKeystore(hostname);
+} catch (e) {
+    console.error("Failed to generate/retrieve keystore:", e);
+    throw new Error("Keystore generation failed.");
+}
+
+if (!fs.existsSync(currentKeystorePath)) {
+    throw new Error("Keystore not found after generation attempt.");
+}
+
+// Zipalign (Recommended before signing)
+const alignedApk = path.join(workDir, 'aligned.apk');
+try {
+    await runCommand(`zipalign -p -f -v 4 "${unsignedApk}" "${alignedApk}"`, workDir);
+} catch (e) {
+    console.warn("zipalign failed or not found, attempting to sign unaligned apk.");
+    await fs.copy(unsignedApk, alignedApk);
+}
+
+// Sign with apksigner
+await runCommand(`apksigner sign --ks "${currentKeystorePath}" --ks-pass pass:${STORE_PASS} --key-pass pass:${KEY_PASS} --out "${finalApkPath}" "${alignedApk}"`, workDir);
+
+// Remove the .idsig file generated by apksigner
+const idsigPath = `${finalApkPath}.idsig`;
+if (fs.existsSync(idsigPath)) {
+    await fs.remove(idsigPath);
+}
+
+// Generate Log
+const stats = await fs.stat(finalApkPath);
+const sizeInMb = (stats.size / 1024 / 1024).toFixed(2);
+console.log(`[Build] Success! APK: releases/${finalApkName} (${sizeInMb} MB)`);
+
+// Cleanup (optional, maybe keep for debug)
+// await fs.remove(workDir);
+
+return finalApkName;
 }
 
 module.exports = { generateApk, extractMeta };
