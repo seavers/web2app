@@ -81,6 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Force fetch on blur if it's a valid URL string
+    urlInput.addEventListener('blur', () => {
+        const url = urlInput.value.trim();
+        if (!url) return;
+
+        try {
+            new URL(url);
+            // If valid object, fetch meta
+            fetchSmartTitle(url);
+        } catch (e) { /* ignore invalid url */ }
+    });
+
     async function fetchSmartTitle(url) {
         // Show field with placeholder
         appNameGroup.style.display = 'block';
@@ -121,7 +133,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!isValidUrl(url)) {
+        // Strict validation check for generating
+        // We allow the URL if it is parsable, even if it failed the strict "typing" check earlier.
+        let valid = false;
+        try {
+            new URL(url);
+            valid = true;
+        } catch (e) {
+            valid = false;
+        }
+
+        if (!valid) {
             showStatus('请输入完整的 URL (例如: https://baidu.com)', 'error');
             return;
         }
