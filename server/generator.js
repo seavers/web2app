@@ -306,14 +306,33 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     if (packageMatch && packageMatch[1]) {
         const oldPackage = packageMatch[1];
         console.log(`[Manifest] Replacing old package '${oldPackage}' with '${newPackageName}'`);
-        // Global replace to fix package attribute AND provider/permission authorities
+
+        // CRITICAL FIX: The Activity Class Name MUST NOT change because we are not moving the Smali code.
+        // It must remain pointing to "com.example.web2app.MainActivity".
+        // However, we MUST change the package name and provider authorities to avoid conflicts.
+
+        // 1. Protect the Activity Name
+        // We know the activity is fully qualified as com.example.web2app.MainActivity in our template
+        const activityClass = `${oldPackage}.MainActivity`;
+        const placeholder = "___ACTIVITY_CLASS_PLACEHOLDER___";
+
+        // Replace exact class name occurances with placeholder
+        // Note: Global replace
+        manifestContent = manifestContent.split(activityClass).join(placeholder);
+
+        // 2. Globally replace the old package name with the new one
+        // This updates 'package="..."', 'android:authorities="..."', and permissions
         manifestContent = manifestContent.split(oldPackage).join(newPackageName);
+
+        // 3. Restore the Activity Name
+        manifestContent = manifestContent.split(placeholder).join(activityClass);
+
     } else {
         console.warn("[Manifest] Could not find package name to replace!");
     }
 
     await fs.writeFile(manifestPath, manifestContent);
-    console.log(`[Manifest] Updated package name to: ${newPackageName}`);
+    console.log(`[Manifest] Updated package name to: ${newPackageName} (preserved Activity class)`);
 
     // 4. Update Resources
     // Updating strings.xml
