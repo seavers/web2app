@@ -3,8 +3,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const { downloadIcon, startProcessingIcon } = require('./utils');
-const jsdom = require("jsdom");
-const { JSDOM } = jsdom;
+const cheerio = require('cheerio'); // Use Cheerio instead of JSDOM for better bundling support
 const axios = require('axios');
 
 const TEMP_DIR = path.join(__dirname, '../temp');
@@ -19,13 +18,14 @@ const STORE_PASS = 'password';
 async function extractMeta(url) {
     try {
         const res = await axios.get(url);
-        const dom = new JSDOM(res.data);
-        const title = dom.window.document.querySelector('title')?.textContent || 'My App';
+        const $ = cheerio.load(res.data);
+        const title = $('title').text() || 'My App';
 
         let icon = '';
-        const iconRel = dom.window.document.querySelector('link[rel*="icon"]');
+        const iconRel = $('link[rel*="icon"]').attr('href');
+
         if (iconRel) {
-            icon = iconRel.href;
+            icon = iconRel;
             if (!icon.startsWith('http')) {
                 const urlObj = new URL(url);
                 icon = new URL(icon, urlObj.origin).toString();
