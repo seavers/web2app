@@ -11,9 +11,9 @@ function show_help {
     echo "  build-apk  - Build the Android Template APK (requires Gradle/Android SDK)."
     echo "  build      - Bundle self-contained production server into ./dist."
     echo "  prod       - Deploy/Restart app on server (Checks env, installs tools, starts via PM2)."
-    echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
-    echo "  setup-dev  - Install Full Android SDK (for building templates)."
-    echo "  setup-mac  - Install development tools on macOS (via Homebrew)."
+    echo "  setup-prod       - Install JS runtime + Apktool + Signing tools (Minimal Linux)."
+    echo "  setup-dev-linux  - Install Full Android SDK (for building templates on Linux)."
+    echo "  setup-dev-macosx - Install development tools on macOS (via Homebrew)."
     echo ""
 }
 
@@ -200,11 +200,11 @@ elif [ "$COMMAND" == "setup-prod" ]; then
     echo ">>> Production Setup Complete!"
     echo "Verify with: apktool -version && apksigner --version"
 
-elif [ "$COMMAND" == "setup-dev" ]; then
+elif [ "$COMMAND" == "setup-dev-linux" ]; then
     echo ">>> Installing Development Dependencies (Full Android SDK)..."
     
     if [ "$EUID" -ne 0 ]; then
-        echo "Please run as root (sudo ./web2app.sh setup-dev)"
+        echo "Please run as root (sudo ./web2app.sh setup-dev-linux)"
         exit 1
     fi
 
@@ -238,7 +238,7 @@ elif [ "$COMMAND" == "setup-dev" ]; then
     echo ">>> Dev Setup Complete!"
     echo "Please run 'source ~/.bashrc'"
 
-elif [ "$COMMAND" == "setup-mac" ]; then
+elif [ "$COMMAND" == "setup-dev-macosx" ]; then
     echo ">>> Installing Development Tools on macOS (via Homebrew)..."
 
     if ! command -v brew &> /dev/null; then

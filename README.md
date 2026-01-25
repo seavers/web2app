@@ -38,10 +38,27 @@ Compiles the Node.js server and assets into a standalone `dist/` directory.
 ```
 
 **Step B: Start Production Server**
-Starts or reloads the application using PM2. This command ensures dependencies are installed (including Linux-specific binaries) and manages the process.
+Starts or reloads the application using PM2. This command ensures dependencies are installed and manages the process.
 ```bash
 ./web2app.sh prod
 ```
+
+### 4. Environment Setup (Optional)
+
+We provide helper commands to set up dependencies for different environments:
+
+*   **Production Server (Linux)**: Installs Java, Apktool, Signing tools.
+    ```bash
+    sudo ./web2app.sh setup-prod
+    ```
+*   **Development (Linux)**: Installs full Android SDK for building templates.
+    ```bash
+    sudo ./web2app.sh setup-dev-linux
+    ```
+*   **Development (macOS)**: Installs tools via Homebrew.
+    ```bash
+    ./web2app.sh setup-dev-macosx
+    ```
 
 ## Configuration
 
