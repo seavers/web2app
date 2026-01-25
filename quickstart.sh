@@ -12,7 +12,9 @@ function show_help {
     echo "  prod  - (Default) Bundle self-contained production server into ./dist."
     echo "  prod  - (Default) Bundle self-contained production server into ./dist."
     echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
+    echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
     echo "  setup-dev  - Install Full Android SDK (for building templates)."
+    echo "  setup-mac  - Install development tools on macOS (via Homebrew)."
     echo ""
 }
 
@@ -163,6 +165,33 @@ elif [ "$COMMAND" == "setup-dev" ]; then
 
     echo ">>> Dev Setup Complete!"
     echo "Please run 'source ~/.bashrc'"
+
+elif [ "$COMMAND" == "setup-mac" ]; then
+    echo ">>> Installing Development Tools on macOS (via Homebrew)..."
+
+    if ! command -v brew &> /dev/null; then
+        echo "Error: Homebrew is not installed."
+        exit 1
+    fi
+
+    # 1. Install Java
+    echo ">>> Installing OpenJDK 17..."
+    brew install openjdk@17
+
+    # 2. Install Apktool
+    echo ">>> Installing Apktool..."
+    brew install apktool
+
+    # 3. Install Android SDK Tools (usually via Cask or cmdline-tools)
+    # Note: 'brew install --cask android-commandlinetools' is common, or full studio
+    # For CI/CLI only:
+    echo ">>> Installing Android Command Line Tools..."
+    brew install --cask android-commandlinetools
+
+    echo ">>> macOS Setup Complete!"
+    echo "Note: You may need to link openjdk: sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk"
+    echo "Make sure ANDROID_HOME is set in your shell profile."
+    echo "Typical path: export ANDROID_HOME=/usr/local/share/android-commandlinetools (Intel) or /opt/homebrew/share/android-commandlinetools (Apple Silicon)"
 
 else
     show_help
