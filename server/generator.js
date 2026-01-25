@@ -400,7 +400,12 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     console.log(`[Build] Success! APK: releases/${finalApkName} (${sizeInMb} MB)`);
 
     // Cleanup
-    // await fs.remove(workDir);
+    try {
+        await fs.remove(workDir);
+        console.log(`[Cleanup] Removed temporary directory: ${workDir}`);
+    } catch (e) {
+        console.warn(`[Cleanup] Failed to remove ${workDir}:`, e.message);
+    }
 
     return finalApkName;
 }
