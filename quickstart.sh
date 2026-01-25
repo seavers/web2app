@@ -10,7 +10,9 @@ function show_help {
     echo "  dev   - Install dependencies and start local development server (with hot-reload)."
     echo "  app   - Build the Android Template APK (requires Gradle/Android SDK)."
     echo "  prod  - (Default) Bundle self-contained production server into ./dist."
-    echo "  setup - Install system dependencies (Java, Android SDK, Apktool) - Ubuntu/Debian only."
+    echo "  prod  - (Default) Bundle self-contained production server into ./dist."
+    echo "  setup-prod - Install JS runtime + Apktool + Signing tools (Minimal)."
+    echo "  setup-dev  - Install Full Android SDK (for building templates)."
     echo ""
 }
 
@@ -105,55 +107,77 @@ elif [ "$COMMAND" == "prod" ]; then
     echo ">>> Production build ready in ./dist"
     echo ">>> To run: cd dist && node server/index.js"
 
-elif [ "$COMMAND" == "setup" ]; then
-    echo ">>> Installing System Dependencies (Ubuntu/Debian)..."
+elif [ "$COMMAND" == "setup-prod" ]; then
+    echo ">>> Installing Production Dependencies (Ubuntu/Debian)..."
     
-    # Check if running as root
     if [ "$EUID" -ne 0 ]; then
-        echo "Please run as root (sudo ./quickstart.sh setup)"
+        echo "Please run as root (sudo ./quickstart.sh setup-prod)"
         exit 1
     fi
 
-    # 1. Update & Install Basic Tools
+    # 1. Install Java, Git, Unzip
     apt-get update
     apt-get install -y openjdk-17-jdk git unzip curl wget
 
-    # 2. Install Apktool
+    # 2. Install Signing Tools (apksigner, zipalign) - avoid full SDK
+    apt-get install -y apksigner zipalign
+
+    # 3. Install Apktool
     echo ">>> Installing Apktool..."
     wget https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool -O /usr/local/bin/apktool
     wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
     chmod +x /usr/local/bin/apktool
     chmod +x /usr/local/bin/apktool.jar
 
-    # 3. Install Android SDK Command Line Tools
+    echo ">>> Production Setup Complete!"
+    echo "Verify with: apktool -version && apksigner --version"
+
+elif [ "$COMMAND" == "setup-dev" ]; then
+    echo ">>> Installing Development Dependencies (Full Android SDK)..."
+    
+    if [ "$EUID" -ne 0 ]; then
+        echo "Please run as root (sudo ./quickstart.sh setup-dev)"
+        exit 1
+    fi
+
+    # 1. Base tools from prod
+    apt-get update
+    apt-get install -y openjdk-17-jdk git unzip curl wget
+    
+    # Check if apktool already installed
+    if ! command -v apktool &> /dev/null; then
+        echo ">>> Installing Apktool..."
+        wget https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool -O /usr/local/bin/apktool
+        wget https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
+        chmod +x /usr/local/bin/apktool
+        chmod +x /usr/local/bin/apktool.jar
+    fi
+
+    # 2. Install Android SDK Command Line Tools
     echo ">>> Installing Android SDK..."
     export ANDROID_HOME=/opt/android-sdk
     mkdir -p $ANDROID_HOME/cmdline-tools
     
-    # Download Command Line Tools (latest as of now)
-    wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-    unzip cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
-    mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-    rm cmdline-tools.zip
+    if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+        unzip cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
+        mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+        rm cmdline-tools.zip
+    fi
 
-    # Accept Licenses & Install Build Tools
+    # 3. Install Build Tools & Platforms (Needed for compiling templates)
     yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platform-tools"
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platform-tools" "platforms;android-33"
 
-    # 4. Set Environment Variables
-    echo ">>> Configuring Environment Variables..."
-    
-    # Add to .bashrc if not exists
+    # 4. Env Vars
     if ! grep -q "ANDROID_HOME" ~/.bashrc; then
         echo '' >> ~/.bashrc
-        echo '# Android SDK' >> ~/.bashrc
         echo 'export ANDROID_HOME=/opt/android-sdk' >> ~/.bashrc
         echo 'export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools' >> ~/.bashrc
     fi
 
-    echo ">>> Setup Complete!"
-    echo "Please run 'source ~/.bashrc' to apply environment changes."
-    echo "You can verify installation with: apktool -version && sdkmanager --version"
+    echo ">>> Dev Setup Complete!"
+    echo "Please run 'source ~/.bashrc'"
 
 else
     show_help
