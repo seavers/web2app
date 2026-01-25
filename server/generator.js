@@ -402,7 +402,7 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     // Cleanup
     try {
         await fs.remove(workDir);
-        console.log(`[Cleanup] Removed temporary directory: ${workDir}`);
+
     } catch (e) {
         console.warn(`[Cleanup] Failed to remove ${workDir}:`, e.message);
     }
