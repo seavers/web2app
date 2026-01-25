@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+temp/
+releases/
+dist/
+
+# Android
+.gradle/
+local.properties
+.idea/
+*.iml
+build/
+app/build/
+android-template/build/
+android-template/app/build/
+android-template/.gradle/
+
+# Web2App Specific
+template.apk
+*.keystore
+
+# System
+.DS_Store
+thumbs.db

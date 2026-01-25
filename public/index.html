@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web2App Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Web2App Generator</h1>
+        <p>Turn any website into an Android App instantly.</p>
+
+        <div class="input-group">
+            <input type="url" id="urlInput" placeholder="Enter Website URL (e.g. https://google.com)" required>
+        </div>
+
+        <button id="generateBtn" class="generate-btn">Generate App</button>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+
+        <div id="status"></div>
+        <div id="result"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
