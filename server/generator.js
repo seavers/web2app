@@ -150,8 +150,7 @@ async function extractMeta(url) {
         if (iconRel) {
             icon = iconRel;
             if (!icon.startsWith('http')) {
-                const urlObj = new URL(finalUrl);
-                icon = new URL(icon, urlObj.origin).toString();
+                icon = new URL(icon, finalUrl).toString();
             }
         } else {
             const urlObj = new URL(finalUrl);
