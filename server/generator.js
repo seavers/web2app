@@ -34,8 +34,8 @@ const getSmartTitle = (fullTitle, url) => {
     // Stop words to exclude
     const stopWords = ['home', 'homepage', 'index', 'welcome', 'main', 'page', 'archive', 'category', 'tag', 'default', 'untitled'];
 
-    // Separators to split by
-    const parts = fullTitle.split(/[-|–:\|]/).map(p => p.trim()).filter(p => p.length > 0);
+    // Separators to split by: hyphen, pipe, underscore, colon (en/cn), dash (en/em)
+    const parts = fullTitle.split(/[-|_:：|–—]/).map(p => p.trim()).filter(p => p.length > 0);
 
     if (parts.length === 0) return domainFallback;
 
