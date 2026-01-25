@@ -39,7 +39,7 @@ To run in production mode:
 
 ## Configuration
 
-*   **Keystore**: Place your signing key as `my-release-key.keystore` in the root directory.
+*   **Keystore**: Place your signing key as `web2app.keystore` in the root directory.
     *   Update `server/generator.js` if you use different passwords/aliases.
 *   **Port**: Set `PORT` environment variable to change the link port (default 3001).
 

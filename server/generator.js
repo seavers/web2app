@@ -10,7 +10,7 @@ const axios = require('axios');
 const TEMP_DIR = path.join(__dirname, '../temp');
 const RELEASES_DIR = path.join(__dirname, '../releases');
 const TEMPLATE_APK = path.join(__dirname, '../template.apk');
-const KEYSTORE_PATH = path.join(__dirname, '../my-release-key.keystore'); // User must provide this
+const KEYSTORE_PATH = path.join(__dirname, '../web2app.keystore'); // User must provide this
 // Default values for keystore - in a real app these should be configurable
 const KEY_ALIAS = 'my-key-alias';
 const KEY_PASS = 'password';
