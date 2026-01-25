@@ -106,6 +106,11 @@ elif [ "$COMMAND" == "prod" ]; then
         echo "WARNING: web2app.keystore not found."
     fi
 
+    if [ -f "config.json" ]; then
+        cp config.json dist/
+        echo ">>> Copied config.json."
+    fi
+
     echo ">>> Production build ready in ./dist"
     echo ">>> To run: cd dist && node server/index.js"
 
