@@ -301,10 +301,16 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     const manifestPath = path.join(decodedDir, 'AndroidManifest.xml');
     let manifestContent = await fs.readFile(manifestPath, 'utf-8');
 
-    // Regex to replace package="old.pkg" with package="new.pkg"
-    // We captured the old package to ensure we only replace the attribute in <manifest> tag ideally, 
-    // but globally identifying package="..." in manifest file is usually safe enough.
-    manifestContent = manifestContent.replace(/package="[^"]+"/, `package="${newPackageName}"`);
+    // Regex to find old package name
+    const packageMatch = manifestContent.match(/package="([^"]+)"/);
+    if (packageMatch && packageMatch[1]) {
+        const oldPackage = packageMatch[1];
+        console.log(`[Manifest] Replacing old package '${oldPackage}' with '${newPackageName}'`);
+        // Global replace to fix package attribute AND provider/permission authorities
+        manifestContent = manifestContent.split(oldPackage).join(newPackageName);
+    } else {
+        console.warn("[Manifest] Could not find package name to replace!");
+    }
 
     await fs.writeFile(manifestPath, manifestContent);
     console.log(`[Manifest] Updated package name to: ${newPackageName}`);
