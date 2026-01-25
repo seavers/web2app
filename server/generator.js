@@ -15,14 +15,29 @@ const KEY_ALIAS = 'my-key-alias';
 const KEY_PASS = 'password';
 const STORE_PASS = 'password';
 
-const getSmartTitle = (fullTitle) => {
-    if (!fullTitle) return 'My App';
+const getSmartTitle = (fullTitle, url) => {
+    // Generate fallback from domain
+    let domainFallback = 'My App';
+    if (url) {
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname.replace(/^www\./, '');
+            const domainPart = hostname.split('.')[0];
+            if (domainPart) {
+                domainFallback = domainPart.charAt(0).toUpperCase() + domainPart.slice(1);
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    if (!fullTitle) return domainFallback;
 
     // Stop words to exclude
     const stopWords = ['home', 'homepage', 'index', 'welcome', 'main', 'page', 'archive', 'category', 'tag', 'default', 'untitled'];
 
     // Separators to split by
     const parts = fullTitle.split(/[-|–:\|]/).map(p => p.trim()).filter(p => p.length > 0);
+
+    if (parts.length === 0) return domainFallback;
 
     // Strategy:
     // 1. Look for the longest part that is NOT just a stop word.
@@ -48,36 +63,104 @@ const getSmartTitle = (fullTitle) => {
             // Otherwise take the first relevant part
             bestPart = relevantParts[0];
         }
+    } else {
+        // If all parts were stop words, checking if we should fallback to domain or keep first part
+        // Often "Home" is not a good app name.
+        if (stopWords.includes(bestPart.toLowerCase())) {
+            return domainFallback;
+        }
     }
 
     return bestPart;
 };
 
 async function extractMeta(url) {
+    const maxRetries = 2;
+    let attempts = 0;
+    let html = '';
+    let finalUrl = url;
+
+    while (attempts <= maxRetries) {
+        attempts++;
+        try {
+            console.log(`[Meta] Fetching ${url} (Attempt ${attempts}/${maxRetries + 1})...`);
+
+            const res = await axios.get(url, {
+                timeout: 15000,
+                maxRedirects: 5,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                },
+                validateStatus: null // Don't throw on status code, handle manually
+            });
+
+            console.log(`[Meta] ${url} -> Status: ${res.status}, Body Size: ${res.data ? res.data.length : 0}`);
+
+            if (res.status >= 200 && res.status < 400) {
+                html = res.data;
+                // Update finalUrl in case of redirect (if axios provides it, mostly logical)
+                if (res.request && res.request.res && res.request.res.responseUrl) {
+                    finalUrl = res.request.res.responseUrl;
+                }
+                break;
+            } else {
+                console.warn(`[Meta] Failed with status ${res.status}`);
+                if (attempts > maxRetries) break;
+            }
+        } catch (e) {
+            console.error(`[Meta] Error during fetch: ${e.message}`);
+            if (attempts > maxRetries) break;
+        }
+
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+
+    // Default return structure
+    const getDefaults = () => {
+        const smartTitle = getSmartTitle('', url);
+        // Try to guess favicon location if we failed to fetch page
+        const u = new URL(url);
+        const icon = `${u.origin}/favicon.ico`;
+        return { title: smartTitle, icon, fullTitle: '' };
+    };
+
+    if (!html) {
+        console.log('[Meta] Could not retrieve content, using defaults.');
+        return getDefaults();
+    }
+
     try {
-        const res = await axios.get(url);
-        const $ = cheerio.load(res.data);
+        const $ = cheerio.load(html);
         const fullTitle = $('title').text() || '';
-        const smartTitle = getSmartTitle(fullTitle);
+        console.log(`[Meta] Extracted Title: "${fullTitle}"`);
+
+        const smartTitle = getSmartTitle(fullTitle, url);
 
         let icon = '';
-        const iconRel = $('link[rel*="icon"]').attr('href');
+        // Try multiple icon sources in order
+        const iconRel =
+            $('link[rel="apple-touch-icon"]').attr('href') ||
+            $('link[rel="icon"]').attr('href') ||
+            $('link[rel="shortcut icon"]').attr('href');
 
         if (iconRel) {
             icon = iconRel;
             if (!icon.startsWith('http')) {
-                const urlObj = new URL(url);
+                const urlObj = new URL(finalUrl);
                 icon = new URL(icon, urlObj.origin).toString();
             }
         } else {
-            const urlObj = new URL(url);
+            const urlObj = new URL(finalUrl);
             icon = `${urlObj.origin}/favicon.ico`;
         }
 
+        console.log(`[Meta] Final - Title: "${smartTitle}", Icon: "${icon}"`);
         return { title: smartTitle, icon, fullTitle };
     } catch (e) {
-        console.error('Error fetching meta:', e);
-        return { title: 'Generated App', icon: '', fullTitle: '' };
+        console.error('[Meta] Parsing error:', e);
+        return getDefaults();
     }
 }
 
