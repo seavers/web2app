@@ -284,6 +284,31 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     const decodedDir = path.join(workDir, 'decoded');
     await runCommand(`apktool d "${TEMPLATE_APK}" -o "${decodedDir}" -f`, workDir);
 
+    // 3.5 Update Package Name (Application ID) to be unique
+    // Configuration for base package
+    const BASE_PACKAGE_PREFIX = process.env.APP_ID_BASE || 'online.dahai.web2app';
+
+    // Derive distinct suffix from hostname
+    // e.g. www.12306.cn -> www_12306_cn
+    const urlObjForPkg = new URL(targetUrl);
+    let pkgSuffix = urlObjForPkg.hostname.replace(/[^a-zA-Z0-9]/g, '_');
+    // Package parts cannot start with number (though suffix might be fine if prefix ends with dot, but safer to prefix if needed)
+    if (/^\d/.test(pkgSuffix)) {
+        pkgSuffix = 'app_' + pkgSuffix;
+    }
+    const newPackageName = `${BASE_PACKAGE_PREFIX}.${pkgSuffix}`;
+
+    const manifestPath = path.join(decodedDir, 'AndroidManifest.xml');
+    let manifestContent = await fs.readFile(manifestPath, 'utf-8');
+
+    // Regex to replace package="old.pkg" with package="new.pkg"
+    // We captured the old package to ensure we only replace the attribute in <manifest> tag ideally, 
+    // but globally identifying package="..." in manifest file is usually safe enough.
+    manifestContent = manifestContent.replace(/package="[^"]+"/, `package="${newPackageName}"`);
+
+    await fs.writeFile(manifestPath, manifestContent);
+    console.log(`[Manifest] Updated package name to: ${newPackageName}`);
+
     // 4. Update Resources
     // Updating strings.xml
     const stringsPath = path.join(decodedDir, 'res/values/strings.xml');
@@ -315,6 +340,7 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
     // 7. Sign APK
     // Naming convention: Domain_Path_JobId
     // e.g. dahai_online_blog_archive_12345678.apk
+    // Reuse urlObjForPkg or create new one
     const urlObj = new URL(targetUrl);
     let namePart = urlObj.hostname.replace('www.', '').replace(/\./g, '_');
     if (urlObj.pathname && urlObj.pathname !== '/') {
