@@ -42,11 +42,38 @@ async function extractMeta(url) {
     }
 }
 
+const findAndroidTool = (toolName) => {
+    // Try to find in ANDROID_HOME first
+    if (process.env.ANDROID_HOME) {
+        const buildToolsDir = path.join(process.env.ANDROID_HOME, 'build-tools');
+        if (fs.existsSync(buildToolsDir)) {
+            const versions = fs.readdirSync(buildToolsDir).sort().reverse();
+            if (versions.length > 0) {
+                const toolPath = path.join(buildToolsDir, versions[0], toolName);
+                if (fs.existsSync(toolPath)) return toolPath;
+            }
+        }
+    }
+    // Fallback to system path (assumes toolName is in PATH)
+    return toolName;
+};
+
 function runCommand(cmd, cwd) {
+    // Basic substitution to ensure we use absolute paths if available/needed
+    // This is a simple improvement; for full robustness, we should separate command and args.
+    // However, given the current "cmd" string usage, we'll try to replace known commands.
+
+    let finalCmd = cmd;
+    if (cmd.startsWith('apksigner')) {
+        finalCmd = cmd.replace('apksigner', `"${findAndroidTool('apksigner')}"`);
+    } else if (cmd.startsWith('zipalign')) {
+        finalCmd = cmd.replace('zipalign', `"${findAndroidTool('zipalign')}"`);
+    }
+
     return new Promise((resolve, reject) => {
-        exec(cmd, { cwd }, (error, stdout, stderr) => {
+        exec(finalCmd, { cwd, env: process.env }, (error, stdout, stderr) => { // Inherit env
             if (error) {
-                console.error(`Error executing ${cmd}:`, stderr);
+                console.error(`Error executing ${finalCmd}:`, stderr);
                 reject(error);
             } else {
                 resolve(stdout);
