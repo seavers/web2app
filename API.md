@@ -2,13 +2,13 @@
 
 ## 1. JavaScript Bridge (App Capability)
 
-The generated Android App includes a JavaScript Bridge named `AndroidBridge` that allows the web page to interact with the Android device file system.
+The generated Android App includes a JavaScript Bridge named `Web2App` that allows the web page to interact with the Android device file system.
 
 > **Note**: These methods are only available when the page is loaded inside the generated Android App. You should check for their existence before calling them.
 
 ### Check Availability
 ```javascript
-if (window.AndroidBridge) {
+if (window.Web2App) {
     // App capabilities available
 }
 ```
@@ -25,7 +25,7 @@ Reads a file from the app's external files directory.
     *   (null): If file does not exist or error occurs.
 *   **Example**:
 ```javascript
-const content = window.AndroidBridge.readFile('my_data.txt');
+const content = window.Web2App.readFile('my_data.txt');
 if (content) {
     console.log('File content:', content);
 }
@@ -41,7 +41,7 @@ Writes text content to a file in the app's external files directory.
     *   (boolean): `true` if successful, `false` otherwise.
 *   **Example**:
 ```javascript
-const success = window.AndroidBridge.writeFile('my_data.txt', 'Hello World');
+const success = window.Web2App.writeFile('my_data.txt', 'Hello World');
 if (success) {
     console.log('File saved successfully');
 }

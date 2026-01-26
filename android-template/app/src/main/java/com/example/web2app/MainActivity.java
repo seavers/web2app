@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowFileAccess(true);
 
         // Add JS Bridge
-        webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
+        webView.addJavascriptInterface(new WebAppInterface(this), "Web2App");
 
         webView.setWebViewClient(new WebViewClient());
         
