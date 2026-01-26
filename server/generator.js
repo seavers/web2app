@@ -338,7 +338,10 @@ async function generateApk(targetUrl, customAppName, customIconUrl) {
             await downloadIcon(icon, iconPath);
             await startProcessingIcon(iconPath, path.join(decodedDir, 'res'));
         } catch (e) {
-            console.error("Failed to process icon, using default.", e);
+
+            // Simplify log for common errors like 404
+            const msg = e.response && e.response.status === 404 ? 'Icon not found (404)' : e.message;
+            console.warn(`[Icon] Failed to process custom icon, using default. Reason: ${msg}`);
         }
     }
 
