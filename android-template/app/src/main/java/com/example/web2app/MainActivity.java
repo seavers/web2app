@@ -10,10 +10,20 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.annotation.TargetApi;
+import android.os.Build;
 
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
+    private ValueCallback<Uri[]> mFilePathCallback;
+    private final static int FILECHOOSER_RESULTCODE = 1;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +41,24 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient());
         
+        webView.setWebChromeClient(new WebChromeClient() {
+            @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                if (mFilePathCallback != null) {
+                    mFilePathCallback.onReceiveValue(null);
+                }
+                mFilePathCallback = filePathCallback;
+                try {
+                    startActivityForResult(fileChooserParams.createIntent(), FILECHOOSER_RESULTCODE);
+                } catch (Exception e) {
+                    mFilePathCallback = null;
+                    return false;
+                }
+                return true;
+            }
+        });
+        
         // Load URL from resources - this will be replaced during generation
         String url = getString(R.string.start_url);
         webView.loadUrl(url);
@@ -42,6 +70,31 @@ public class MainActivity extends AppCompatActivity {
             webView.goBack();
         } else {
             super.onBackPressed();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FILECHOOSER_RESULTCODE) {
+            if (mFilePathCallback == null) {
+                super.onActivityResult(requestCode, resultCode, data);
+                return;
+            }
+            Uri[] results = null;
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                if (data.getDataString() != null) {
+                    results = new Uri[]{Uri.parse(data.getDataString())};
+                } else if (data.getClipData() != null) {
+                    results = new Uri[data.getClipData().getItemCount()];
+                    for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                        results[i] = data.getClipData().getItemAt(i).getUri();
+                    }
+                }
+            }
+            mFilePathCallback.onReceiveValue(results);
+            mFilePathCallback = null;
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
         }
     }
 
