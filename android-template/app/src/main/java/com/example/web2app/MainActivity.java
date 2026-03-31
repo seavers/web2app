@@ -17,6 +17,13 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.annotation.TargetApi;
 import android.os.Build;
+import android.app.DownloadManager;
+import android.content.Context;
+import android.os.Environment;
+import android.webkit.CookieManager;
+import android.webkit.URLUtil;
+import android.widget.Toast;
+import android.webkit.DownloadListener;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -56,6 +63,35 @@ public class MainActivity extends AppCompatActivity {
                     return false;
                 }
                 return true;
+            }
+        });
+
+        webView.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                    request.setMimeType(mimeType);
+                    request.addRequestHeader("cookie", CookieManager.getInstance().getCookie(url));
+                    request.addRequestHeader("User-Agent", userAgent);
+                    request.setDescription("Downloading file...");
+                    request.setTitle(URLUtil.guessFileName(url, contentDisposition, mimeType));
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, URLUtil.guessFileName(url, contentDisposition, mimeType));
+                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (dm != null) {
+                        dm.enqueue(request);
+                        Toast.makeText(getApplicationContext(), "文件开始下载，请查看通知栏", Toast.LENGTH_LONG).show();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        Toast.makeText(getApplicationContext(), "无法下载文件", Toast.LENGTH_SHORT).show();
+                    }
+                }
             }
         });
         
