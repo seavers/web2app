@@ -24,6 +24,13 @@ import android.webkit.CookieManager;
 import android.webkit.URLUtil;
 import android.widget.Toast;
 import android.webkit.DownloadListener;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import androidx.core.app.NotificationCompat;
+import android.content.pm.PackageManager;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import android.Manifest;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -37,6 +44,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
+
         webView = findViewById(R.id.webview);
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
@@ -46,7 +59,18 @@ public class MainActivity extends AppCompatActivity {
         // Add JS Bridge
         webView.addJavascriptInterface(new WebAppInterface(this), "Web2App");
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                view.evaluateJavascript("if(!window.NotificationPolyfilled){ window.Notification = function(title, options) { Web2App.showNotification(title, options ? options.body : ''); }; window.Notification.requestPermission = function(callback) { if(callback) callback('granted'); return Promise.resolve('granted'); }; window.Notification.permission = 'granted'; window.NotificationPolyfilled = true; }", null);
+            }
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                view.evaluateJavascript("if(!window.NotificationPolyfilled){ window.Notification = function(title, options) { Web2App.showNotification(title, options ? options.body : ''); }; window.Notification.requestPermission = function(callback) { if(callback) callback('granted'); return Promise.resolve('granted'); }; window.Notification.permission = 'granted'; window.NotificationPolyfilled = true; }", null);
+            }
+        });
         
         webView.setWebChromeClient(new WebChromeClient() {
             @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -171,6 +195,16 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
                 return false;
             }
+        }
+
+        @JavascriptInterface
+        public void showNotification(String title, String body) {
+            NotificationManager notificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                notificationManager.createNotificationChannel(new NotificationChannel("web2app_channel", "Web Notifications", NotificationManager.IMPORTANCE_DEFAULT));
+            }
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(mActivity, "web2app_channel").setSmallIcon(R.mipmap.ic_launcher).setContentTitle(title).setContentText(body).setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true);
+            notificationManager.notify((int) System.currentTimeMillis(), builder.build());
         }
     }
 }
