@@ -81,7 +81,24 @@ public class MainActivity extends AppCompatActivity {
                 }
                 mFilePathCallback = filePathCallback;
                 try {
-                    startActivityForResult(fileChooserParams.createIntent(), FILECHOOSER_RESULTCODE);
+                    Intent intent = fileChooserParams.createIntent();
+                    boolean isImage = false;
+                    if (fileChooserParams.getAcceptTypes() != null) {
+                        for (String type : fileChooserParams.getAcceptTypes()) {
+                            if (type != null && type.startsWith("image/")) {
+                                isImage = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isImage) {
+                        intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                        intent.setType("image/*");
+                        if (fileChooserParams.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                        }
+                    }
+                    startActivityForResult(intent, FILECHOOSER_RESULTCODE);
                 } catch (Exception e) {
                     mFilePathCallback = null;
                     return false;
