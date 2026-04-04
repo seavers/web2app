@@ -1,71 +1,71 @@
-# Web2App API Documentation
+# Web2App API 文档
 
-## 1. JavaScript Bridge (App Capability)
+## 1. JavaScript 桥接 (App 原生能力)
 
-The generated Android App includes a JavaScript Bridge named `Web2App` that allows the web page to interact with the Android device file system.
+生成的 Android 应用内置了一个名为 `Web2App` 的 JavaScript 桥接，允许网页与 Android 设备文件系统等进行交互。
 
-> **Note**: These methods are only available when the page is loaded inside the generated Android App. You should check for their existence before calling them.
+> **注意**: 这些方法仅在网页加载到生成的 Android 应用内部时可用。在调用之前，请检查它们是否存在。您也可以参考 [Android原生能力接入指南](ANDROID_CAPABILITIES.md) 了解更多与原生交互的功能（如文件上传、下载等）。
 
-### Check Availability
+### 检查是否可用
 ```javascript
 if (window.Web2App) {
-    // App capabilities available
+    // App 原生能力可用
 }
 ```
 
-### Methods
+### 方法
 
 #### `readFile(filename)`
-Reads a file from the app's external files directory.
+从应用程序的外部文件私有目录读取文件。
 
-*   **Parameters**:
-    *   `filename` (String): The name of the file to read (relative to app's external storage root).
-*   **Returns**: 
-    *   (String): File content if successful.
-    *   (null): If file does not exist or error occurs.
-*   **Example**:
+*   **参数**:
+    *   `filename` (String): 要读取的文件名 (相对于应用的外部存储根目录)。
+*   **返回值**: 
+    *   (String): 读取成功则返回文件内容。
+    *   (null): 如果文件不存在或发生错误返回 null。
+*   **示例**:
 ```javascript
 const content = window.Web2App.readFile('my_data.txt');
 if (content) {
-    console.log('File content:', content);
+    console.log('文件内容:', content);
 }
 ```
 
 #### `writeFile(filename, content)`
-Writes text content to a file in the app's external files directory.
+将文本内容写入应用程序的外部私有目录中的文件。
 
-*   **Parameters**:
-    *   `filename` (String): The name of the file to write.
-    *   `content` (String): The string content to write.
-*   **Returns**:
-    *   (boolean): `true` if successful, `false` otherwise.
-*   **Example**:
+*   **参数**:
+    *   `filename` (String): 要写入的文件名。
+    *   `content` (String): 要写入的字符串内容。
+*   **返回值**:
+    *   (boolean): 成功时为 `true`，否则为 `false`。
+*   **示例**:
 ```javascript
 const success = window.Web2App.writeFile('my_data.txt', 'Hello World');
 if (success) {
-    console.log('File saved successfully');
+    console.log('文件保存成功');
 }
 ```
 
 ---
 
-## 2. Server API
+## 2. Server 端 API
 
-The backend server exposes the following endpoints for app generation.
+后端服务器提供以下接口用于应用生成。
 
-### Generate App
-**Endpoint**: `POST /api/generate`
+### 生成 App
+**接口**: `POST /api/generate`
 
-Triggers the generation of an APK from a URL.
+根据配置的 URL 等参数触发生成一个 APK。
 
-*   **Request Body** (`application/json`):
+*   **请求体** (`application/json`):
     ```json
     {
         "url": "https://example.com"
     }
     ```
-*   **Response**:
-    *   **Success (200)**:
+*   **响应**:
+    *   **成功 (200)**:
         ```json
         {
             "success": true,
@@ -73,18 +73,18 @@ Triggers the generation of an APK from a URL.
             "filename": "GenApp_1234.apk"
         }
         ```
-    *   **Error (400/500)**:
+    *   **失败 (400/500)**:
         ```json
         {
-            "error": "Error message",
-            "details": "Stack trace or details"
+            "error": "错误信息",
+            "details": "堆栈跟踪或详细信息"
         }
         ```
 
-### Download App
-**Endpoint**: `GET /download/:filename`
+### 下载 App
+**接口**: `GET /download/:filename`
 
-Downloads a generated APK.
+下载已生成的 APK。
 
-*   **Parameters**:
-    *   `filename`: The filename returned by the generate API.
+*   **参数**:
+    *   `filename`: 生成 API 返回的文件名。
